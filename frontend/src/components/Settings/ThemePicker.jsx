@@ -12,6 +12,25 @@ const THEME_PREVIEW = {
   S: ['#120800', '#B87040'],
 }
 
+// Textur-Vorschau pro Theme (aus public/textures). Themes ohne Eintrag bleiben
+// einfarbig.
+const THEME_TEXTURE = {
+  F: 'BlackWoodTexture.png',
+  G: 'WalnutWoodTexture.png',
+  H: 'TextileNavyTexture.png',
+  I: 'TextileForestTexture.png',
+  J: 'TextileOliveTexture.png',
+  K: 'CognacLeatherTexture.png',
+  L: 'BlackLeatherTexture.png',
+  M: 'CarbonTexture.png',
+  N: 'SlateTexture.png',
+  O: 'CortenSteelTexture.png',
+  P: 'WalnutBurlTexture.png',
+  Q: 'WalnutBurlWarmTexture.png',
+  R: 'RivetedSteelTexture.png',
+  S: 'CopperTexture.png',
+}
+
 // Helle Themes (--theme-light: 1 in themes.css) brauchen dunklen Text statt weiß.
 const LIGHT_THEMES = new Set(['C'])
 
@@ -28,17 +47,20 @@ export default function ThemePicker() {
           <button
             key={id}
             onClick={() => setTheme(id)}
-            className="relative rounded-xl p-3 h-24 flex flex-col justify-end text-left transition-transform"
+            className="relative rounded-xl p-3 h-24 flex flex-col justify-end text-left transition-transform overflow-hidden"
             style={{
               background: bg,
+              backgroundImage: THEME_TEXTURE[id] ? `url('/textures/${THEME_TEXTURE[id]}')` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               border: isActive ? `2px solid ${accent}` : '1px solid var(--color-separator)',
               transform: isActive ? 'scale(1.03)' : 'none',
             }}
           >
             <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full" style={{ background: accent }} />
-            <span className="text-[11px] font-mono opacity-60" style={{ color: accent }}>{id}</span>
-            <span className="text-[12px] font-semibold leading-tight"
-              style={{ color: LIGHT_THEMES.has(id) ? '#1A1A1A' : '#FFFFFF' }}>
+            <span className="relative text-[11px] font-mono opacity-80" style={{ color: accent }}>{id}</span>
+            <span className="relative text-[12px] font-semibold leading-tight"
+              style={{ color: LIGHT_THEMES.has(id) ? '#1A1A1A' : '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
               {THEME_NAMES[id]}
             </span>
           </button>

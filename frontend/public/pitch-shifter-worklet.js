@@ -1,14 +1,13 @@
 /**
- * Pitch-Shifter AudioWorklet — Phase-Vocoder mit Overlap-Add
- * Shift-Bereich: -1200 bis +1200 Cents (eine Oktave in beide Richtungen)
- * Vorberechnung: Hann-Fenster, FFT-Lookup-Tabellen für Radix-2
+ * Pitch-Shifter AudioWorklet — vereinfachter Phase-Vocoder mit korrektem Ringpuffer
+ * Pitch-Bereich: -1200 bis +1200 Cents
+ * Algorithmus: STFT (Short-Time Fourier Transform) mit Phase-Synchronisierung
  * Latenz: ~46ms (FRAME_SIZE=2048 @ 44.1kHz)
  */
 
 const FRAME_SIZE = 2048
-const HOP_SIZE = 512          // 75% overlap (4 frames pro Fenster)
-const OVERLAP_COUNT = 4       // frames pro full cycle
-const FFT_SIZE = FRAME_SIZE   // 1:1
+const HOP_SIZE = 512          // 25% hop (75% overlap)
+const FFT_SIZE = FRAME_SIZE
 
 class PitchShifterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -18,229 +17,230 @@ class PitchShifterProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: -2400,
         maxValue: 2400,
-        automationRate: 'k-rate', // Freq-Wechsel sind diskret, brauchen keine a-rate Ramping
+        automationRate: 'k-rate',
       },
     ]
   }
 
   constructor() {
     super()
-    this.frameIndex = 0
-    this.outputIndex = 0
 
-    // Input & Output Ringpuffer für OLA
-    this.inputBuffer = new Float32Array(FRAME_SIZE)
-    this.outputBuffer = new Float32Array(FRAME_SIZE * OVERLAP_COUNT)
+    // Ringpuffer für Input (FRAME_SIZE):
+    // Älteste Samples am Anfang, neuste am Ende
+    this.inputRing = new Float32Array(FRAME_SIZE)
+    this.inputRingPos = 0
 
-    // FFT State
+    // Output-Ringpuffer (4x FRAME_SIZE für OLA-Akkumulation)
+    this.outputRing = new Float32Array(FRAME_SIZE * 4)
+    this.outputRingPos = 0
+
+    // FFT-Buffer
     this.fftReal = new Float32Array(FFT_SIZE)
     this.fftImag = new Float32Array(FFT_SIZE)
-    this.lastPhase = new Float32Array(FFT_SIZE / 2 + 1)
-    this.sumPhase = new Float32Array(FFT_SIZE / 2 + 1)
 
-    // Fenster
-    this.window = this._createHannWindow(FRAME_SIZE)
+    // Phase-Tracking für jeden Bin
+    this.prevPhase = new Float32Array(FFT_SIZE / 2 + 1)
+    this.phaseAccum = new Float32Array(FFT_SIZE / 2 + 1)
 
-    // Bit-Reversal-Lookup für FFT
-    this.bitReverseTable = this._createBitReverseTable(FFT_SIZE)
+    // Hann-Fenster
+    this.window = this._makeHannWindow(FRAME_SIZE)
 
-    // Dispatch-Cache für STFT-Bins
-    this.expectedPhase = new Float32Array(FFT_SIZE / 2 + 1)
-    for (let k = 0; k < FFT_SIZE / 2 + 1; k++) {
-      this.expectedPhase[k] = (2 * Math.PI * k * HOP_SIZE) / FFT_SIZE
-    }
+    // Bit-Reversal für FFT
+    this.bitReverse = this._makeBitReversal(FFT_SIZE)
+
+    // Frame-Counter
+    this.frameSampleCount = 0
   }
 
-  _createHannWindow(size) {
+  _makeHannWindow(size) {
     const w = new Float32Array(size)
-    for (let i = 0; i < size; i++) {
-      w[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (size - 1)))
+    for (let n = 0; n < size; n++) {
+      w[n] = 0.5 * (1 - Math.cos((2 * Math.PI * n) / (size - 1)))
     }
     return w
   }
 
-  _createBitReverseTable(size) {
-    const table = new Uint16Array(size)
+  _makeBitReversal(size) {
+    const br = new Uint16Array(size)
     for (let i = 0; i < size; i++) {
       let j = 0
-      let k = i
-      for (let m = 1; m < size; m <<= 1) {
-        j = (j << 1) | (k & 1)
-        k >>= 1
+      let m = i
+      for (let k = 1; k < size; k *= 2) {
+        j = (j * 2) | (m & 1)
+        m >>= 1
       }
-      table[i] = j
+      br[i] = j
     }
-    return table
+    return br
   }
 
-  _radix2FFT(real, imag, inverse = false) {
+  _fft(real, imag) {
     const N = real.length
-    if (N === 1) return
 
-    // Bit-Reversal
+    // Bit-reversal reordering
     for (let i = 0; i < N; i++) {
-      const j = this.bitReverseTable[i]
+      const j = this.bitReverse[i]
       if (i < j) {
-        ;[real[i], real[j]] = [real[j], real[i]]
-        ;[imag[i], imag[j]] = [imag[j], imag[i]]
+        let tmp = real[i]
+        real[i] = real[j]
+        real[j] = tmp
+        tmp = imag[i]
+        imag[i] = imag[j]
+        imag[j] = tmp
       }
     }
 
-    // FFT-Stages
+    // Cooley-Tukey radix-2 FFT
     for (let stage = 1; stage <= Math.log2(N); stage++) {
-      const step = 1 << stage
-      const halfStep = step >> 1
-      const angle = (inverse ? 1 : -1) * (2 * Math.PI) / step
+      const stride = 1 << stage
+      const halfStride = stride >> 1
+      const angle = -2 * Math.PI / stride
 
-      for (let k = 0; k < N; k += step) {
-        let w = 1
-        let wReal = Math.cos(0)
-        let wImag = Math.sin(0)
+      for (let offset = 0; offset < N; offset += stride) {
+        for (let i = 0; i < halfStride; i++) {
+          const aIdx = offset + i
+          const bIdx = offset + i + halfStride
 
-        for (let j = 0; j < halfStep; j++) {
-          const even = k + j
-          const odd = k + j + halfStep
+          // Twiddle factor (rotation)
+          const wReal = Math.cos(angle * i)
+          const wImag = Math.sin(angle * i)
 
-          const t0 = real[odd] * wReal - imag[odd] * wImag
-          const t1 = real[odd] * wImag + imag[odd] * wReal
+          // Butterfly operation: b = b * w
+          const bReal = real[bIdx] * wReal - imag[bIdx] * wImag
+          const bImag = real[bIdx] * wImag + imag[bIdx] * wReal
 
-          real[odd] = real[even] - t0
-          imag[odd] = imag[even] - t1
-          real[even] = real[even] + t0
-          imag[even] = imag[even] + t1
-
-          // Update twiddle: w *= exp(i * angle)
-          const cosA = Math.cos(angle * (j + 1))
-          const sinA = Math.sin(angle * (j + 1))
-          const newWReal = wReal * cosA - wImag * sinA
-          const newWImag = wReal * sinA + wImag * cosA
-          wReal = newWReal
-          wImag = newWImag
+          // Update
+          real[bIdx] = real[aIdx] - bReal
+          imag[bIdx] = imag[aIdx] - bImag
+          real[aIdx] = real[aIdx] + bReal
+          imag[aIdx] = imag[aIdx] + bImag
         }
       }
     }
-
-    if (inverse) {
-      const scale = 1 / N
-      for (let i = 0; i < N; i++) {
-        real[i] *= scale
-        imag[i] *= scale
-      }
-    }
   }
 
-  _unwrap(phase) {
-    // Vereinfacht: schon in [-π, π] durch atan2 Konvention
-    return phase
+  _ifft(real, imag) {
+    // Conjugate input
+    for (let i = 0; i < real.length; i++) {
+      imag[i] = -imag[i]
+    }
+
+    // FFT
+    this._fft(real, imag)
+
+    // Conjugate output and scale
+    const scale = 1 / real.length
+    for (let i = 0; i < real.length; i++) {
+      real[i] *= scale
+      imag[i] *= -scale
+    }
   }
 
   process(inputs, outputs, parameters) {
     const input = inputs[0]?.[0]
     const output = outputs[0]?.[0]
-
     if (!input || !output) return true
 
     const pitchCents = parameters.pitchCents[0]
     const pitchRatio = Math.pow(2, pitchCents / 1200)
 
-    // Bypass bei ~0 Cents
+    // Bypass bei 440 Hz (0 Cents)
     if (Math.abs(pitchCents) < 0.5) {
       output.set(input)
       return true
     }
 
-    // Auswahl je nach Pitch-Richtung (Forward / Backward Time-Stretch)
-    const isSlowDown = pitchRatio < 1
-
+    // Verarbeite jeden eingehenden Sample
     for (let i = 0; i < input.length; i++) {
-      this.inputBuffer[this.frameIndex] = input[i]
-      this.frameIndex++
+      // Schreibe in Input-Ringpuffer
+      this.inputRing[this.inputRingPos] = input[i]
+      this.inputRingPos = (this.inputRingPos + 1) % FRAME_SIZE
+      this.frameSampleCount++
 
-      if (this.frameIndex === HOP_SIZE) {
-        // Frame vollständig — verarbeite ihn
+      // Wenn wir HOP_SIZE Samples haben: Frame verarbeiten
+      if (this.frameSampleCount === HOP_SIZE) {
         this._processFrame(pitchRatio)
-        this.frameIndex = 0
+        this.frameSampleCount = 0
       }
 
-      // Output aus ringpuffer lesen
-      if (this.outputIndex < FRAME_SIZE * OVERLAP_COUNT) {
-        output[i] = this.outputBuffer[this.outputIndex]
-        this.outputIndex++
-        if (this.outputIndex >= FRAME_SIZE * OVERLAP_COUNT) {
-          this.outputIndex = 0
-        }
-      } else {
-        output[i] = 0
-      }
+      // Lese aus Output-Ringpuffer
+      output[i] = this.outputRing[this.outputRingPos]
+      this.outputRing[this.outputRingPos] = 0 // Clear für nächsten OLA
+      this.outputRingPos = (this.outputRingPos + 1) % (FRAME_SIZE * 4)
     }
 
     return true
   }
 
   _processFrame(pitchRatio) {
-    // 1. Fenster-Input
-    const windowed = new Float32Array(FRAME_SIZE)
+    // 1. Kopiere Ringpuffer in lineares Array (älteste → neuste)
+    const frame = new Float32Array(FRAME_SIZE)
     for (let i = 0; i < FRAME_SIZE; i++) {
-      windowed[i] = (this.inputBuffer[i] || 0) * this.window[i]
+      frame[i] = this.inputRing[(this.inputRingPos + i) % FRAME_SIZE]
     }
 
-    // 2. FFT (kopiere zu Real/Imag, führe FFT durch)
+    // 2. Fenster anwenden
     for (let i = 0; i < FRAME_SIZE; i++) {
-      this.fftReal[i] = windowed[i]
+      frame[i] *= this.window[i]
+    }
+
+    // 3. FFT
+    for (let i = 0; i < FFT_SIZE; i++) {
+      this.fftReal[i] = frame[i]
       this.fftImag[i] = 0
     }
-    this._radix2FFT(this.fftReal, this.fftImag, false)
+    this._fft(this.fftReal, this.fftImag)
 
-    // 3. Phasen-Vocoder: Magn bleiben gleich, Phasen Zeit-strecken
-    const bins = FRAME_SIZE / 2 + 1
-    for (let k = 0; k < bins; k++) {
+    // 4. Phasen-Vocoder: Phase-Propagation mit Pitch-Shift
+    const numBins = FFT_SIZE / 2 + 1
+    const binHz = 44100 / FFT_SIZE // Hz pro Bin
+    const expectedPhaseAdv = (2 * Math.PI * HOP_SIZE) / FFT_SIZE
+
+    for (let k = 0; k < numBins; k++) {
       const real = this.fftReal[k]
       const imag = this.fftImag[k]
 
       // Magnitude
       const mag = Math.sqrt(real * real + imag * imag)
 
-      // Aktuelle Phase
-      let phase = Math.atan2(imag, real)
+      // Phase
+      const phase = Math.atan2(imag, real)
 
-      // Expected phase (Phase ohne Pitch-Shift)
-      const expected = this.expectedPhase[k]
+      // Phase-Differenz unwrapping
+      let dPhase = phase - this.prevPhase[k]
+      while (dPhase > Math.PI) dPhase -= 2 * Math.PI
+      while (dPhase < -Math.PI) dPhase += 2 * Math.PI
 
-      // Phase-Differenz (unwrap)
-      let delta = phase - this.lastPhase[k] - expected
-      // Unwrap in [-π, π]
-      while (delta > Math.PI) delta -= 2 * Math.PI
-      while (delta < -Math.PI) delta += 2 * Math.PI
-
-      // True frequency offset
-      const trueFreq = expected + delta / HOP_SIZE
+      // True frequency
+      const df = (dPhase / (2 * Math.PI) * 44100) / HOP_SIZE
+      const trueFreq = k * binHz + df
 
       // Neue Phase nach Pitch-Shift
-      const newSumPhase = this.sumPhase[k] + trueFreq * HOP_SIZE * pitchRatio
-      this.sumPhase[k] = newSumPhase
+      const newPhase = this.phaseAccum[k] + (2 * Math.PI * trueFreq * HOP_SIZE) / 44100 * pitchRatio
+      this.phaseAccum[k] = newPhase
 
-      // Polar → Cartesian zurück
-      const shiftedPhase = newSumPhase % (2 * Math.PI)
+      // Update FFT mit neuer Phase
+      const shiftedPhase = newPhase % (2 * Math.PI)
       this.fftReal[k] = mag * Math.cos(shiftedPhase)
       this.fftImag[k] = mag * Math.sin(shiftedPhase)
 
-      this.lastPhase[k] = phase
+      this.prevPhase[k] = phase
     }
 
-    // Mirror für negative Freq (Real-Signal)
-    for (let k = bins; k < FRAME_SIZE; k++) {
-      this.fftReal[k] = this.fftReal[FRAME_SIZE - k]
-      this.fftImag[k] = -this.fftImag[FRAME_SIZE - k]
+    // Mirror für reelles Signal
+    for (let k = numBins; k < FFT_SIZE; k++) {
+      this.fftReal[k] = this.fftReal[FFT_SIZE - k]
+      this.fftImag[k] = -this.fftImag[FFT_SIZE - k]
     }
 
-    // 4. IFFT
-    this._radix2FFT(this.fftReal, this.fftImag, true)
+    // 5. IFFT
+    this._ifft(this.fftReal, this.fftImag)
 
-    // 5. OLA: Output in Ringpuffer schreiben mit Fenster
-    const outPos = (this.outputIndex + FRAME_SIZE - HOP_SIZE) % (FRAME_SIZE * OVERLAP_COUNT)
+    // 6. OLA (Overlap-Add) in Output-Ringpuffer
+    const outStartIdx = (this.outputRingPos + FRAME_SIZE - HOP_SIZE) % (FRAME_SIZE * 4)
     for (let i = 0; i < FRAME_SIZE; i++) {
-      const outIdx = (outPos + i) % (FRAME_SIZE * OVERLAP_COUNT)
-      this.outputBuffer[outIdx] += this.fftReal[i] * this.window[i]
+      const outIdx = (outStartIdx + i) % (FRAME_SIZE * 4)
+      this.outputRing[outIdx] += this.fftReal[i] * this.window[i]
     }
   }
 }

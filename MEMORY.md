@@ -85,18 +85,16 @@ Alle Endpunkte implementiert und getestet:
 - PWA-Manifest, iOS-Safari-Meta-Tags, Safe-Area-Insets
 - Responsive: sm-Breakpoint für kompaktere Mobile-Ansicht
 
-### Audio-Verarbeitung
-- **Pitch-Shift / Frequenzumwandlung** (✅ implementiert 2026-06-04): Custom AudioWorklet mit Phase-Vocoder. Frequenzauswahl (396-963 Hz) wird sofort im Browser angewendet + zur iOS-App synchronisiert. Basiert auf iOS-Formel: `pitchCents = 1200 * log2(hz/440)`. Latenz ~46ms (FRAME_SIZE=2048). Implementierung: `frontend/public/pitch-shifter-worklet.js`, Anbindung in `useAudio.js` + `SettingsView.jsx`.
-
 ### Bekannte Einschränkungen / Offene Punkte
+- **Pitch-Shift / Frequenzumwandlung im Browser**: Die Frequenzauswahl (432 Hz etc.) wird im Backend gespeichert und zur iOS-App synchronisiert — aber der Browser führt keine Pitch-Shifting-Verarbeitung durch. Web Audio API Phase-Vocoder ist technisch komplex und erfordert getestete Implementierungen (z.B. Tone.js oder Production-Grade AudioWorklets). Für Production nicht empfohlen, Custom-Implementierung hatte zu viele subtile Bugs.
 - **ICY-Metadaten** (Titel des laufenden Songs): Browser können ICY-Headers nicht direkt lesen. Aktuell nur Sendername angezeigt, kein Titel. Nachrüstbar über Backend-Proxy-Endpunkt.
 - **Textur-Filter** (brightness/contrast wie in iOS): CSS `filter` auf `html`-Element würde den gesamten Inhalt filtern. Aktuell werden Texturen ungefiltert angezeigt — sehen trotzdem gut aus.
 
 ---
 
 ## Nächste Schritte
-- [x] Pitch-Shift via Web Audio API (abgeschlossen 2026-06-04)
 - [ ] iOS WebSyncService.swift implementieren (Favoriten + Settings sync)
 - [ ] Deployment auf Linux Mac Mini (rsync + docker compose up)
 - [ ] GitHub Repo anlegen: Radio432Web
 - [ ] ICY-Metadaten Proxy im Backend (optionale Erweiterung)
+- [ ] Pitch-Shift via Production-Grade AudioWorklet oder Tone.js (später, wenn nötig)

@@ -32,25 +32,18 @@ PATH="$NODE20:$PATH" npm install
 
 ---
 
-## Pitch-Shift / Frequenzumwandlung (gelöst 2026-06-04)
+## Pitch-Shift / Frequenzumwandlung (nicht implementiert — komplexe Anforderung)
 
 **Problem:** Die Frequenzauswahl (432 Hz, 528 Hz etc.) in den Web-Einstellungen hat im Browser keine hörbare Wirkung.
 
-**Ursache:** Fehlende Web Audio API Implementierung. iOS nutzt `AVAudioUnitTimePitch`, Browser brauchte einen Phase-Vocoder.
+**Ursache:** Web Audio API Pitch-Shifting braucht einen Phase-Vocoder (STFT + Phasenpropagation). Das ist ein komplexer Algorithmus mit vielen Fallstricken (Fensterüberlap, FFT-Fehler, Ringpuffer-Synchronisation).
 
-**Lösung:** Custom AudioWorklet mit Phase-Vocoder (Radix-2 FFT, Larson-Schema Phasenpropagation, Overlap-Add Synthese).
+**Versuche:**
+- Erste Implementierung: Radix-2 FFT mit Larson-Schema Phase-Propagation → zu viele subtile Bugs
+- Zweite Implementierung: Verbesserter Ringpuffer + bessere FFT → immer noch nicht funktionsfähig
 
-**Implementierung:**
-- `frontend/public/pitch-shifter-worklet.js`: 248 Zeilen, FRAME_SIZE=2048, HOP_SIZE=512 (75% Overlap), Latenz ~46ms
-- `frontend/src/hooks/useAudio.js`: AudioWorklet laden, pitchNode im Graph zwischen source/analyser, reactive Subscription auf `frequency` State
-- `frontend/src/components/Settings/SettingsView.jsx`: Hint-Text aktualisiert
-- Formel: `pitchCents = 1200 * log2(hz/440)` — identisch zu iOS
-- Bypass bei 440 Hz (0 Cents) — direkte Kopie ohne FFT-Overhead
+**Stand:** Die Frequenzauswahl speichert die Präferenz im Backend (`PUT /api/settings`) und synchronisiert sie zur iOS-App. Im Browser findet kein Pitch-Shifting statt — diese Einschränkung ist bewusst dokumentiert.
 
-**Testing (lokal erfolgreich):**
-- Worklet lädt fehlerfrei unter Vite Dev-Server
-- AudioContext wird korrekt aufgebaut mit 4 Nodes (source → pitch → analyser → destination)
-- Frequenzwechsel wird im Frontend-State aktualisiert
-- Pitch-Parameter werden via linearRampToValueAtTime aktualisiert (sanfte Übergänge)
+**Wenn doch gewünscht:** Eine getestete externe Bibliothek wie `Tone.js` Pitch-Shifter oder eine voll-validierte AudioWorklet-Implementierung (z.B. aus WebRTC/Chrome Sources) nutzen. Custom Phase-Vocoder ist für Production nicht empfohlen.
 
 ---

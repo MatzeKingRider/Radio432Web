@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Radio, Play, Square, X, Volume1, Volume2, VolumeX } from 'lucide-react'
+import { Radio, Play, Pause, X, Volume1, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-react' // Volume1 für VolIcon bei niedrigem Pegel
 import { usePlayerStore } from '../../store/playerStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import ThemedBackground from '../common/ThemedBackground'
@@ -8,7 +8,7 @@ import SpectrumAnalyzer from './SpectrumAnalyzer'
 
 // Vollbild-Player im Portrait-Layout (angelehnt an iOS NowPlayingScreen).
 // Slide-up-Animation beim Öffnen, Schließen via X-Button oder Swipe-Down.
-export default function FullscreenPlayer({ open, onClose, onToggle }) {
+export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNext }) {
   const station = usePlayerStore((s) => s.currentStation)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
@@ -16,10 +16,15 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
   const setVolume = usePlayerStore((s) => s.setVolume)
   const vuStyle = useSettingsStore((s) => s.vuStyle)
   const spectrumStyle = useSettingsStore((s) => s.spectrumStyle)
+  const vuColor = useSettingsStore((s) => s.vuColor)
+  const spectrumColor = useSettingsStore((s) => s.spectrumColor)
 
   const [shown, setShown] = useState(false)
   const [dragY, setDragY] = useState(0)
+  const [imgFailed, setImgFailed] = useState(false)
   const startYRef = useRef(null)
+
+  useEffect(() => { setImgFailed(false) }, [station?.id])
 
   // Slide-up nach dem Mount auslösen.
   useEffect(() => {
@@ -34,6 +39,8 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
   if (!open) return null
 
   const VolIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
+  const muted = volume === 0
+  function toggleMute() { setVolume(muted ? 0.8 : 0) }
 
   function onTouchStart(e) { startYRef.current = e.touches[0].clientY }
   function onTouchMove(e) {
@@ -56,7 +63,10 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
         zIndex: 50,
         transform: `translateY(${translate}px)`,
         transition: startYRef.current == null ? 'transform 0.32s cubic-bezier(0.32,0.72,0,1)' : 'none',
-        background: 'var(--color-background)',
+        backgroundColor: 'var(--color-background)',
+        backgroundImage: 'var(--texture-url)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -82,13 +92,13 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
           className="aspect-square w-[80vw] max-w-[460px] rounded-3xl overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
         >
-          {station?.favicon ? (
+          {station?.favicon && !imgFailed ? (
             <img
               src={station.favicon}
               alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain"
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              onError={() => setImgFailed(true)}
             />
           ) : (
             <Radio size={120} style={{ color: 'var(--color-accent)' }} />
@@ -105,19 +115,48 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
           </div>
         </div>
 
-        {/* Play/Stop */}
-        <button
-          onClick={onToggle}
-          disabled={!station}
-          aria-label={isPlaying ? 'Stopp' : 'Wiedergabe'}
-          className="btn-material w-20 h-20 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40"
-        >
-          {isPlaying ? <Square size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
-        </button>
+        {/* Sender zurück / Play-Pause / Sender vor */}
+        <div className="flex items-center justify-center gap-6 shrink-0">
+          <button
+            onClick={onPrev}
+            disabled={!station}
+            aria-label="Vorheriger Sender"
+            className="w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+          >
+            <SkipBack size={22} fill="currentColor" />
+          </button>
+
+          <button
+            onClick={onToggle}
+            disabled={!station}
+            aria-label={isPlaying ? 'Pause' : 'Wiedergabe'}
+            className="btn-material w-20 h-20 rounded-full flex items-center justify-center disabled:opacity-40"
+          >
+            {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
+          </button>
+
+          <button
+            onClick={onNext}
+            disabled={!station}
+            aria-label="Nächster Sender"
+            className="w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+          >
+            <SkipForward size={22} fill="currentColor" />
+          </button>
+        </div>
 
         {/* Lautstärke */}
         <div className="flex items-center gap-3 w-full max-w-[460px]">
-          <VolIcon size={20} style={{ color: 'var(--color-text-secondary)' }} />
+          <button
+            onClick={toggleMute}
+            aria-label={muted ? 'Ton an' : 'Stummschalten'}
+            className="w-9 h-9 flex items-center justify-center rounded-full shrink-0"
+            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+          >
+            <VolIcon size={18} />
+          </button>
           <input
             type="range"
             min="0"
@@ -136,15 +175,15 @@ export default function FullscreenPlayer({ open, onClose, onToggle }) {
         </div>
 
         {/* Visualizer-Reihe */}
-        <div className="flex items-stretch gap-2 w-full max-w-[460px] h-[90px]">
+        <div className="flex items-stretch gap-2 w-full max-w-[460px] h-[120px]">
           <div className="h-full" style={{ aspectRatio: '4 / 3' }}>
-            <VUMeter label="L" style={vuStyle} />
+            <VUMeter label="L" style={vuStyle} customColor={vuColor} />
           </div>
           <div className="flex-1 h-full">
-            <SpectrumAnalyzer style={spectrumStyle} />
+            <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
           </div>
           <div className="h-full" style={{ aspectRatio: '4 / 3' }}>
-            <VUMeter label="R" style={vuStyle} />
+            <VUMeter label="R" style={vuStyle} customColor={vuColor} />
           </div>
         </div>
       </div>

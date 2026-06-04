@@ -21,7 +21,7 @@ function dbToAngle(db) {
   return ((db - DB_MIN) / DB_RANGE) * ANGLE_RANGE + ANGLE_MIN
 }
 
-export default function VUMeter({ label, style = 'analogClassic' }) {
+export default function VUMeter({ label, style = 'analogClassic', customColor = '' }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(0)
   const levelRef = useRef(0) // gedämpfter Pegel
@@ -62,13 +62,15 @@ export default function VUMeter({ label, style = 'analogClassic' }) {
     }
 
     function draw() {
+      const accent = resolveAccent(customColor)
       const rect = canvas.getBoundingClientRect()
       const w = rect.width
       const h = rect.height
 
-      // Pegel mit Trägheit annähern (Damping 0.3)
+      // Pegel mit Trägheit annähern: schnelles Attack, langsamer Abfall.
       const t = targetLevel()
-      levelRef.current += (t - levelRef.current) * 0.3
+      const speed = t > levelRef.current ? 0.45 : 0.15
+      levelRef.current += (t - levelRef.current) * speed
 
       const now = performance.now()
       if (levelRef.current >= peakRef.current) {
@@ -80,21 +82,23 @@ export default function VUMeter({ label, style = 'analogClassic' }) {
 
       ctx.clearRect(0, 0, w, h)
 
-      // Hintergrund
+      // Hintergrund (stil-abhängig)
       roundRect(ctx, 0, 0, w, h, 9)
-      ctx.fillStyle = '#0A0A0A'
+      ctx.fillStyle = bgColor(style)
       ctx.fill()
 
       if (style === 'classic') {
-        drawBarStyle(ctx, w, h, levelRef.current, label)
+        drawBarStyle(ctx, w, h, levelRef.current, label, accent)
+      } else if (style === 'carbonPro') {
+        drawCarbonProStyle(ctx, w, h, levelRef.current)
       } else {
-        drawArcStyle(ctx, w, h, levelRef.current, label, style)
+        drawArcStyle(ctx, w, h, levelRef.current, label, style, accent)
       }
 
       // Akzent-Rahmen
       roundRect(ctx, 0.9, 0.9, w - 1.8, h - 1.8, 9)
       ctx.lineWidth = 1.8
-      ctx.strokeStyle = getAccent()
+      ctx.strokeStyle = accent
       ctx.stroke()
 
       if (isPlaying || levelRef.current > 0.001 || peakRef.current > 0.001) {
@@ -120,7 +124,7 @@ export default function VUMeter({ label, style = 'analogClassic' }) {
       window.removeEventListener('resize', resize)
       window.removeEventListener('resize', redrawStatic)
     }
-  }, [isPlaying, analyserNode, simulatedMode, label, style])
+  }, [isPlaying, analyserNode, simulatedMode, label, style, customColor])
 
   return (
     <canvas
@@ -131,22 +135,39 @@ export default function VUMeter({ label, style = 'analogClassic' }) {
   )
 }
 
-function getAccent() {
+function resolveAccent(customColor) {
+  if (customColor && customColor !== '') return customColor
   return getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#C9A84C'
 }
 
-// Bogen-Darstellung (analogClassic, modernDark, neonArc).
-function drawArcStyle(ctx, w, h, level, label, style) {
-  const minimal = style === 'modernDark'
+// Hintergrundfarbe je nach Stil.
+function bgColor(style) {
+  if (style === 'vintageBroadcast') return '#0A120A'
+  if (style === 'steelMirror') return '#1A1A1A'
+  if (style === 'plasma') return '#020203'
+  if (style === 'carbonPro') return '#070707'
+  return '#0A0A0A'
+}
+
+// Bogen-Darstellung (analogClassic, modernDark, neonArc, studioUltra,
+// vintageBroadcast, plasma, steelMirror).
+function drawArcStyle(ctx, w, h, level, label, style, accent) {
+  const studio = style === 'studioUltra'
+  const minimal = style === 'modernDark' || studio
   const neon = style === 'neonArc'
-  const accent = getAccent()
+  const vintage = style === 'vintageBroadcast'
+  const plasma = style === 'plasma'
+  const steel = style === 'steelMirror'
+
+  // dB-Wert des aktuellen Pegels (für Studio-Anzeige).
+  const dbVal = level > 0 ? 20 * Math.log10(level) : -60
 
   if (!minimal) {
-    // warmer Glow nur bei analogClassic / neonArc
+    // Accent-basierter Glow (theme-aware) — vorher amber-fest.
     const glow = ctx.createRadialGradient(w / 2, h * 1.05, 10, w / 2, h * 1.05, 140)
-    glow.addColorStop(0, 'rgba(224,158,36,0.22)')
-    glow.addColorStop(0.5, 'rgba(224,158,36,0.06)')
-    glow.addColorStop(1, 'rgba(224,158,36,0)')
+    glow.addColorStop(0, accent + '55')
+    glow.addColorStop(0.5, accent + '18')
+    glow.addColorStop(1, 'rgba(0,0,0,0)')
     roundRect(ctx, 0, 0, w, h, 9)
     ctx.fillStyle = glow
     ctx.fill()
@@ -162,35 +183,130 @@ function drawArcStyle(ctx, w, h, level, label, style) {
     ctx.shadowColor = accent
   }
 
-  if (minimal) {
+  let needleColor = NEEDLE
+  let labelColor = 'rgba(224,158,36,0.6)'
+
+  if (plasma) {
+    // Hintergrund-Spur + heißer Gradient-Bogen accent -> weiß.
+    drawZone(ctx, cx, cy, R, -20, 3, 'rgba(255,255,255,0.05)')
+    const litDb = Math.max(-20, Math.min(3, dbVal))
+    drawZoneGradient(ctx, cx, cy, R, -20, litDb, accent, '#FFFFFF')
+    drawTicks(ctx, cx, cy, R, 'plasma', accent)
+    needleColor = '#FFFFFF'
+    labelColor = 'rgba(255,255,255,0.5)'
+  } else if (vintage) {
+    // Grün / Gelb / Rot-Zonen.
+    drawZone(ctx, cx, cy, R, -20, -3, 'rgba(30,180,30,0.8)')
+    drawZone(ctx, cx, cy, R, -3, 0, 'rgba(220,180,20,0.85)')
+    drawZone(ctx, cx, cy, R, 0, 3, 'rgba(220,40,20,0.9)')
+    drawTicks(ctx, cx, cy, R, 'vintageBroadcast', accent)
+    needleColor = '#EEEEEE'
+    labelColor = 'rgba(60,200,60,0.85)'
+  } else if (steel) {
+    // Chrome-Silber-Zonen + Hellrot bei Übersteuerung.
+    drawZone(ctx, cx, cy, R, -20, 0, 'rgba(180,185,195,0.7)')
+    drawZone(ctx, cx, cy, R, 0, 3, 'rgba(255,90,80,0.85)')
+    drawTicks(ctx, cx, cy, R, 'steelMirror', accent)
+    needleColor = '#E8EDF2'
+    labelColor = 'rgba(210,215,225,0.7)'
+  } else if (minimal) {
     // gedämpfter Gradient-Bogen dunkel -> accent
     drawZone(ctx, cx, cy, R, -20, 3, 'rgba(255,255,255,0.06)')
     drawZone(ctx, cx, cy, R, -20, Math.max(-20, 20 * Math.log10(Math.max(level, 1e-3))), accent)
+    // modernDark: feine Ticks ohne Labels; studioUltra: Ticks + Labels.
+    drawTicks(ctx, cx, cy, R, studio ? 'studioUltra' : 'modernDark', accent)
+    needleColor = NEEDLE
+    labelColor = 'rgba(255,255,255,0.4)'
   } else {
-    // Zonen-Bögen
+    // Zonen-Bögen (analogClassic, neonArc)
     drawZone(ctx, cx, cy, R, -20, 0, neon ? accent : 'rgba(224,158,36,0.75)')
     drawZone(ctx, cx, cy, R, 0, 3, 'rgba(230,35,19,0.88)')
-    // Ticks nur bei analogClassic / neonArc
-    drawTicks(ctx, cx, cy, R)
+    drawTicks(ctx, cx, cy, R, style, accent)
   }
 
   // Nadel
-  const db = level > 0 ? 20 * Math.log10(level) : -60
-  const clamped = Math.max(DB_MIN, Math.min(DB_MAX, db))
-  drawNeedle(ctx, cx, cy, R, dbToAngle(clamped))
+  const clamped = Math.max(DB_MIN, Math.min(DB_MAX, dbVal))
+  drawNeedle(ctx, cx, cy, R, dbToAngle(clamped), needleColor)
   ctx.restore()
 
+  // Studio: digitale dB-Anzeige rechts unten.
+  if (studio) {
+    ctx.fillStyle = accent
+    ctx.font = `${Math.max(8, w * 0.1)}px ui-monospace, monospace`
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText(`${Math.max(-60, dbVal).toFixed(1)} dB`, w - 5, h - 4)
+  }
+
   // Kanal-Label
-  ctx.fillStyle = minimal ? 'rgba(255,255,255,0.4)' : 'rgba(224,158,36,0.6)'
+  ctx.fillStyle = labelColor
   ctx.font = `600 ${w * 0.11}px ui-rounded, system-ui, sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label, cx, cy - R * 0.2)
 }
 
+// Gradient-Zonenbogen von Farbe A (innen/Anfang) nach B (außen/Ende).
+function drawZoneGradient(ctx, cx, cy, R, dbA, dbB, colorA, colorB) {
+  if (dbB <= dbA) return
+  const aS = ((dbToAngle(dbA) - 90) * Math.PI) / 180
+  const aE = ((dbToAngle(dbB) - 90) * Math.PI) / 180
+  const grad = ctx.createLinearGradient(
+    cx + R * Math.cos(aS), cy + R * Math.sin(aS),
+    cx + R * Math.cos(aE), cy + R * Math.sin(aE),
+  )
+  grad.addColorStop(0, colorA)
+  grad.addColorStop(1, colorB)
+  ctx.beginPath()
+  ctx.arc(cx, cy, R, aS, aE, false)
+  ctx.arc(cx, cy, R * 0.905, aE, aS, true)
+  ctx.closePath()
+  ctx.fillStyle = grad
+  ctx.fill()
+}
+
+// Carbon-Pro: Balken-Stil mit Graustufen-Gradient, Carbon-Raster, LED-Punkt.
+function drawCarbonProStyle(ctx, w, h, level) {
+  // Carbon-Textur: feine dunkle Rasterlinien.
+  ctx.save()
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'
+  ctx.lineWidth = 1
+  for (let x = 0; x < w; x += 5) line(ctx, x, 0, x, h, 'rgba(255,255,255,0.04)', 1)
+  for (let y = 0; y < h; y += 5) line(ctx, 0, y, w, y, 'rgba(255,255,255,0.04)', 1)
+  ctx.restore()
+
+  const padX = w * 0.22
+  const padY = h * 0.18
+  const barW = w - padX * 2
+  const innerH = h - padY * 2
+  const lvl = Math.max(0, Math.min(1, level))
+
+  // Track
+  roundRect(ctx, padX, padY, barW, innerH, 4)
+  ctx.fillStyle = '#141414'
+  ctx.fill()
+
+  // Pegel mit Graustufen-Gradient (dunkel unten -> hell oben)
+  const fillH = innerH * lvl
+  const grad = ctx.createLinearGradient(0, padY + innerH, 0, padY)
+  grad.addColorStop(0, '#3A3A3A')
+  grad.addColorStop(1, '#D8D8D8')
+  roundRect(ctx, padX, padY + innerH - fillH, barW, fillH, 4)
+  ctx.fillStyle = grad
+  ctx.fill()
+
+  // LED-Punkt oben: leuchtet bei Level > 0.8.
+  const hot = lvl > 0.8
+  ctx.beginPath()
+  ctx.arc(w / 2, padY * 0.55, Math.max(2.5, w * 0.04), 0, Math.PI * 2)
+  ctx.fillStyle = hot ? '#FF3322' : '#3A1010'
+  if (hot) { ctx.shadowBlur = 8; ctx.shadowColor = '#FF3322' }
+  ctx.fill()
+  ctx.shadowBlur = 0
+}
+
 // Einfache Balken-Darstellung (classic) — Balken wächst von unten, Farbe = accent.
-function drawBarStyle(ctx, w, h, level, label) {
-  const accent = getAccent()
+function drawBarStyle(ctx, w, h, level, label, accent) {
   const padX = w * 0.22
   const padY = h * 0.14
   const barW = w - padX * 2
@@ -227,50 +343,83 @@ function drawZone(ctx, cx, cy, R, dbA, dbB, color) {
   ctx.fill()
 }
 
-function drawTicks(ctx, cx, cy, R) {
+// Stil-abhängige Tick-Palette. showLabels steuert dB-Zahlenwerte.
+function tickPalette(style, accent) {
+  switch (style) {
+    case 'modernDark':
+      return { fine: 'rgba(255,255,255,0.2)', fineRed: 'rgba(255,255,255,0.2)',
+        major: 'rgba(255,255,255,0.4)', majorRed: 'rgba(255,255,255,0.4)',
+        label: 'rgba(255,255,255,0.45)', labelRed: 'rgba(255,255,255,0.45)', showLabels: false }
+    case 'studioUltra':
+      return { fine: 'rgba(255,255,255,0.35)', fineRed: 'rgba(255,255,255,0.35)',
+        major: 'rgba(255,255,255,0.7)', majorRed: 'rgba(255,255,255,0.7)',
+        label: 'rgba(255,255,255,0.7)', labelRed: 'rgba(255,255,255,0.7)', showLabels: true }
+    case 'vintageBroadcast':
+      return { fine: 'rgba(60,200,60,0.5)', fineRed: 'rgba(220,40,20,0.55)',
+        major: 'rgba(60,200,60,0.9)', majorRed: 'rgba(220,40,20,0.9)',
+        label: 'rgba(80,220,80,0.9)', labelRed: 'rgba(230,60,40,0.9)', showLabels: true }
+    case 'steelMirror':
+      return { fine: 'rgba(210,215,225,0.45)', fineRed: 'rgba(255,120,110,0.5)',
+        major: 'rgba(225,230,240,0.85)', majorRed: 'rgba(255,120,110,0.85)',
+        label: 'rgba(225,230,240,0.8)', labelRed: 'rgba(255,130,120,0.85)', showLabels: true }
+    case 'plasma':
+      return { fine: accent + '99', fineRed: 'rgba(255,255,255,0.5)',
+        major: accent + 'DD', majorRed: 'rgba(255,255,255,0.85)',
+        label: accent + 'CC', labelRed: 'rgba(255,255,255,0.8)', showLabels: true }
+    default: // analogClassic, neonArc
+      return { fine: 'rgba(224,158,36,0.62)', fineRed: 'rgba(230,35,19,0.62)',
+        major: 'rgba(224,158,36,0.98)', majorRed: 'rgba(230,35,19,0.98)',
+        label: 'rgba(224,158,36,0.92)', labelRed: 'rgba(230,35,19,0.92)', showLabels: true }
+  }
+}
+
+function drawTicks(ctx, cx, cy, R, style = 'analogClassic', accent) {
+  const p = tickPalette(style, accent)
   const majors = [
     [-20, '-20', false], [-10, '-10', false], [-5, '-5', false],
     [0, '0', true], [3, '+3', true],
   ]
-  // feine Striche alle 0.5 dB
+  // feine Striche alle 0.5 dB (filigran)
   for (let f = -20; f <= 3.0001; f += 0.5) {
     const db = Math.round(f * 10) / 10
     if (majors.some((m) => m[0] === db)) continue
     const rad = ((dbToAngle(db) - 90) * Math.PI) / 180
     const isRed = db > 0
     line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
-      cx + R * 0.9 * Math.cos(rad), cy + R * 0.9 * Math.sin(rad),
-      isRed ? 'rgba(230,35,19,0.62)' : 'rgba(224,158,36,0.62)', 0.9)
+      cx + R * 0.92 * Math.cos(rad), cy + R * 0.92 * Math.sin(rad),
+      isRed ? p.fineRed : p.fine, 0.6)
   }
-  // Major-Striche + Labels
+  // Major-Striche + (optional) Labels
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (const [db, lbl, red] of majors) {
     const rad = ((dbToAngle(db) - 90) * Math.PI) / 180
     line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
-      cx + R * 0.8 * Math.cos(rad), cy + R * 0.8 * Math.sin(rad),
-      red ? 'rgba(230,35,19,0.98)' : 'rgba(224,158,36,0.98)', 1.6)
-    const lx = cx + R * 0.74 * Math.cos(rad)
-    const ly = cy + R * 0.74 * Math.sin(rad)
-    ctx.fillStyle = red ? 'rgba(230,35,19,0.92)' : 'rgba(224,158,36,0.92)'
-    ctx.font = `${Math.max(7, R * 0.1)}px ui-monospace, monospace`
-    ctx.fillText(lbl, lx, ly)
+      cx + R * 0.82 * Math.cos(rad), cy + R * 0.82 * Math.sin(rad),
+      red ? p.majorRed : p.major, 1.2)
+    if (p.showLabels) {
+      const lx = cx + R * 0.74 * Math.cos(rad)
+      const ly = cy + R * 0.74 * Math.sin(rad)
+      ctx.fillStyle = red ? p.labelRed : p.label
+      ctx.font = `${Math.max(7, R * 0.1)}px ui-monospace, monospace`
+      ctx.fillText(lbl, lx, ly)
+    }
   }
 }
 
-function drawNeedle(ctx, cx, cy, R, angleDeg) {
+function drawNeedle(ctx, cx, cy, R, angleDeg, color = NEEDLE) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
   const len = R * 0.87
   const tx = cx + len * Math.cos(rad)
   const ty = cy + len * Math.sin(rad)
   // Schatten
-  line(ctx, cx + 0.6, cy + 0.6, tx + 0.6, ty + 0.6, 'rgba(0,0,0,0.5)', 1.3)
-  // Nadel
-  line(ctx, cx, cy, tx, ty, NEEDLE, 1.6)
+  line(ctx, cx + 0.6, cy + 0.6, tx + 0.6, ty + 0.6, 'rgba(0,0,0,0.5)', 1.1)
+  // Nadel (filigran)
+  line(ctx, cx, cy, tx, ty, color, 1.2)
   // Drehpunkt
   ctx.beginPath()
-  ctx.arc(cx, cy, 2.6, 0, Math.PI * 2)
-  ctx.fillStyle = NEEDLE
+  ctx.arc(cx, cy, 2.2, 0, Math.PI * 2)
+  ctx.fillStyle = color
   ctx.fill()
 }
 

@@ -64,6 +64,12 @@ export const useSettingsStore = create((set) => ({
   spectrumStyle: localStorage.getItem('radio432_spectrum_style') || 'classic',
   setSpectrumStyle: (s) => { localStorage.setItem('radio432_spectrum_style', s); set({ spectrumStyle: s }) },
 
+  // Visualizer-Farben — '' bedeutet accent-Farbe des aktiven Themes nutzen
+  vuColor:        localStorage.getItem('radio432_vu_color')        || '',
+  setVuColor:     (c) => { localStorage.setItem('radio432_vu_color', c);        set({ vuColor: c }) },
+  spectrumColor:  localStorage.getItem('radio432_spectrum_color')  || '',
+  setSpectrumColor:(c) => { localStorage.setItem('radio432_spectrum_color', c); set({ spectrumColor: c }) },
+
   // Button-Material (Override für aktives Theme)
   buttonMaterial: initialButtonMaterial,
   setButtonMaterial: (m) => {

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Radio, Play, Square } from 'lucide-react'
 import { usePlayerStore } from '../../store/playerStore'
 
@@ -7,6 +8,9 @@ export default function NowPlaying({ onToggle, onExpand }) {
   const station = usePlayerStore((s) => s.currentStation)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
+
+  const [imgFailed, setImgFailed] = useState(false)
+  useEffect(() => { setImgFailed(false) }, [station?.id])
 
   return (
     <div className="flex items-center gap-3 px-4 pt-3">
@@ -21,13 +25,13 @@ export default function NowPlaying({ onToggle, onExpand }) {
           className="aspect-square w-[64px] sm:w-[88px] max-w-[88px] rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
         >
-          {station?.favicon ? (
+          {station?.favicon && !imgFailed ? (
             <img
               src={station.favicon}
               alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain"
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              onError={() => setImgFailed(true)}
             />
           ) : (
             <Radio size={40} style={{ color: 'var(--color-accent)' }} />

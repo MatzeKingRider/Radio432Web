@@ -8,6 +8,7 @@ import SearchView from './components/Search/SearchView'
 import SettingsView from './components/Settings/SettingsView'
 import { usePlayerStore } from './store/playerStore'
 import { useSettingsStore } from './store/settingsStore'
+import { useFavoritesStore } from './store/favoritesStore'
 import { useAudio } from './hooks/useAudio'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
   const currentStation = usePlayerStore((s) => s.currentStation)
   const setStation = usePlayerStore((s) => s.setStation)
   const loadFrequency = useSettingsStore((s) => s.loadFrequency)
+  const favorites = useFavoritesStore((s) => s.favorites)
 
   // Frequenz beim Start vom Backend laden.
   useEffect(() => { loadFrequency() }, [loadFrequency])
@@ -40,6 +42,19 @@ export default function App() {
     else play(currentStation.url)
   }
 
+  // In der Favoritenliste zum vorherigen/nächsten Sender springen (mit Wrap-Around).
+  function playByOffset(offset) {
+    if (favorites.length === 0) return
+    const idx = favorites.findIndex((f) => f.id === currentStation?.id)
+    const base = idx === -1 ? 0 : idx
+    const next = (base + offset + favorites.length) % favorites.length
+    const station = favorites[next]
+    setStation(station)
+    play(station.url)
+  }
+  function handlePrev() { playByOffset(-1) }
+  function handleNext() { playByOffset(1) }
+
   return (
     <div className="flex flex-col h-full">
       <ThemedBackground />
@@ -58,6 +73,8 @@ export default function App() {
         open={showFullscreen}
         onClose={() => setShowFullscreen(false)}
         onToggle={handleToggle}
+        onPrev={handlePrev}
+        onNext={handleNext}
       />
     </div>
   )
