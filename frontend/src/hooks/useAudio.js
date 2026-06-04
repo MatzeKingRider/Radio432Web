@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
+import * as Tone from 'tone'
 import { usePlayerStore } from '../store/playerStore'
+import { useSettingsStore } from '../store/settingsStore'
 
 // Zentraler Audio-Hook: ein HTML5-Audio-Element + Web Audio API.
 //
@@ -16,6 +18,7 @@ export function useAudio() {
   const audioRef = useRef(null)
   const ctxRef = useRef(null)
   const analyserRef = useRef(null)
+  const pitchShiftRef = useRef(null)
   const sourceRef = useRef(null)
   const silenceFramesRef = useRef(0)
   const sourceCreatedRef = useRef(false)
@@ -26,6 +29,7 @@ export function useAudio() {
   const setSimulated = usePlayerStore((s) => s.setSimulated)
   const setError = usePlayerStore((s) => s.setError)
   const volume = usePlayerStore((s) => s.volume)
+  const frequency = useSettingsStore((s) => s.frequency)
 
   // Audio-Element einmalig erstellen.
   if (!audioRef.current && typeof Audio !== 'undefined') {
@@ -39,6 +43,15 @@ export function useAudio() {
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
 
+  // Frequenz -> Pitch in Halbtoenen umrechnen und auf PitchShift anwenden.
+  // 432 Hz = Referenz (0 Halbtoene, keine Verschiebung).
+  useEffect(() => {
+    if (!pitchShiftRef.current) return
+    let semitones = 12 * Math.log2(frequency / 432)
+    semitones = Math.round(semitones * 100) / 100
+    pitchShiftRef.current.pitch = semitones
+  }, [frequency])
+
   function ensureContext() {
     if (ctxRef.current) return
     // createMediaElementSource() darf pro Audio-Element nur EINMAL aufgerufen
@@ -49,15 +62,22 @@ export function useAudio() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext
       ctx = new AudioCtx()
+      // Tone.js auf denselben AudioContext setzen, damit Source, Analyser und
+      // PitchShift im selben Audio-Graphen haengen.
+      Tone.setContext(ctx)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 1024
       analyser.smoothingTimeConstant = 0.8
       const source = ctx.createMediaElementSource(audioRef.current)
       sourceCreatedRef.current = true
+      // PitchShift hinter dem Analyser einhaengen, damit der Visualizer die
+      // Original-Frequenzen sieht. .toDestination() verbindet ihn mit dem Output.
+      const pitchShift = new Tone.PitchShift({ pitch: 0, windowSize: 0.08 }).toDestination()
       source.connect(analyser)
-      analyser.connect(ctx.destination)
+      analyser.connect(pitchShift.input)
       ctxRef.current = ctx
       analyserRef.current = analyser
+      pitchShiftRef.current = pitchShift
       sourceRef.current = source
       setAnalyser(analyser)
     } catch (e) {
@@ -68,6 +88,7 @@ export function useAudio() {
       }
       ctxRef.current = null
       analyserRef.current = null
+      pitchShiftRef.current = null
       sourceRef.current = null
       // Ein erneuter Aufbau ist auf demselben Element unmoeglich
       // -> permanent in den Simulationsmodus wechseln.
