@@ -1,0 +1,75 @@
+@import './themes.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Dynamic viewport height für Mobile (iPhone-Adressleisten-Bug) */
+#root {
+  height: 100dvh;
+}
+
+/* Button-Material-Override — überschreibt Theme-Werte wenn data-button-material gesetzt */
+html[data-button-material="gold"]     { --btn-top: #E8C972; --btn-bottom: #9C7A28; --btn-border: #F5E2A0; }
+html[data-button-material="aluminum"] { --btn-top: #C8CDD4; --btn-bottom: #7A8088; --btn-border: #EFF2F5; }
+html[data-button-material="bronze"]   { --btn-top: #B89160; --btn-bottom: #6E5430; --btn-border: #D4B383; }
+html[data-button-material="copper"]   { --btn-top: #D89466; --btn-bottom: #8A4A28; --btn-border: #EFB593; }
+html[data-button-material="standard"] { --btn-top: var(--color-accent); --btn-bottom: color-mix(in srgb, var(--color-accent) 60%, black); --btn-border: color-mix(in srgb, var(--color-accent) 80%, white); }
+
+/* Hintergrund-Textur direkt auf html — sicherste Methode ohne z-index-Konflikte */
+html {
+  background-color: var(--color-background);
+  background-image: var(--texture-url);
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+}
+
+body {
+  background-color: transparent;
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* Textur-Layer: Pseudo-Elemente auf body, ohne z-index-Konflikte */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Metallisches Button-Material — 1:1 aus iOS MetallicButtonStyle */
+.btn-material {
+  background: linear-gradient(180deg, var(--btn-top) 0%, var(--btn-bottom) 100%);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--radius-button);
+  color: var(--btn-fg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: filter 0.15s ease, transform 0.12s ease;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.btn-material:hover { filter: brightness(1.18); }
+.btn-material:active { filter: brightness(0.92); transform: scale(0.97); }
+
+/* Scrollbars dezent halten */
+.scroll-area {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-area::-webkit-scrollbar { width: 6px; }
+.scroll-area::-webkit-scrollbar-thumb {
+  background: var(--color-tabbar-inactive);
+  border-radius: 3px;
+}
+
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }

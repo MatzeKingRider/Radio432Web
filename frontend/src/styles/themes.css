@@ -1,0 +1,450 @@
+/* ==========================================================================
+   Radio432 Theme-System — 1:1 portiert aus iOS ThemeService.swift
+   Button-Materialien aus ButtonAppearance.swift
+   --------------------------------------------------------------------------
+   Material-Mapping (btn-top / btn-bottom / btn-border):
+     gold     -> #E8C972 / #9C7A28 / #F5E2A0
+     aluminum -> #C8CDD4 / #7A8088 / #EFF2F5
+     copper   -> #D89466 / #8A4A28 / #EFB593
+     bronze   -> #B89160 / #6E5430 / #D4B383
+     standard -> accent / accent(dunkel) / accent(hell)
+     liquidGlass -> halbtransparentes Glas (Schiefer)
+   ========================================================================== */
+
+:root,
+:root[data-theme="A"] {
+  --color-background:      #0A0A08;
+  --color-surface:         #161610;
+  --color-accent:          #C9A84C;
+  --color-text:            #F0E8D0;
+  --color-text-secondary:  #7A6A40;
+  --color-tabbar-bg:       #080806;
+  --color-tabbar-active:   #C9A84C;
+  --color-tabbar-inactive: #3A3020;
+  --color-separator:       rgba(201,168,76,0.15);
+  --radius-button:         16px;
+  --btn-top:               #E8C972;
+  --btn-bottom:            #9C7A28;
+  --btn-border:            #F5E2A0;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           none;
+  --texture-brightness:    1;
+  --texture-contrast:      1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0;
+}
+
+:root[data-theme="B"] {
+  --color-background:      #0A0E18;
+  --color-surface:         #111620;
+  --color-accent:          #E87722;
+  --color-text:            #EEF0F5;
+  --color-text-secondary:  #4A6080;
+  --color-tabbar-bg:       #080C14;
+  --color-tabbar-active:   #E87722;
+  --color-tabbar-inactive: #202840;
+  --color-separator:       rgba(232,119,34,0.12);
+  --radius-button:         16px;
+  --btn-top:               #F0913F;
+  --btn-bottom:            #B85812;
+  --btn-border:            #F4A862;
+  --btn-fg:                #FFFFFF;
+  --theme-light:           0;
+  --texture-url:           none;
+  --texture-brightness:    1;
+  --texture-contrast:      1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0;
+}
+
+:root[data-theme="C"] {
+  --color-background:      #F2F2F7;
+  --color-surface:         #FFFFFF;
+  --color-accent:          #1A7B6B;
+  --color-text:            #1A1A1A;
+  --color-text-secondary:  #6B6B6B;
+  --color-tabbar-bg:       #FFFFFF;
+  --color-tabbar-active:   #1A7B6B;
+  --color-tabbar-inactive: #AAAAAA;
+  --color-separator:       rgba(26,123,107,0.15);
+  --radius-button:         16px;
+  --btn-top:               #239885;
+  --btn-bottom:            #145E51;
+  --btn-border:            #3FB3A0;
+  --btn-fg:                #FFFFFF;
+  --theme-light:           1;
+  --texture-url:           none;
+  --texture-brightness:    1;
+  --texture-contrast:      1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0;
+}
+
+:root[data-theme="D"] {
+  --color-background:      #1A1810;
+  --color-surface:         #222018;
+  --color-accent:          #D4890A;
+  --color-text:            #F0E8D0;
+  --color-text-secondary:  #807060;
+  --color-tabbar-bg:       #141208;
+  --color-tabbar-active:   #D4890A;
+  --color-tabbar-inactive: #3A3020;
+  --color-separator:       rgba(212,137,10,0.12);
+  --radius-button:         16px;
+  --btn-top:               #B89160;
+  --btn-bottom:            #6E5430;
+  --btn-border:            #D4B383;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           none;
+  --texture-brightness:    1;
+  --texture-contrast:      1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0;
+}
+
+:root[data-theme="E"] {
+  --color-background:      #1C0C04;
+  --color-surface:         #281408;
+  --color-accent:          #C8922A;
+  --color-text:            #F5E6C8;
+  --color-text-secondary:  #9A7A50;
+  --color-tabbar-bg:       #180A02;
+  --color-tabbar-active:   #C8922A;
+  --color-tabbar-inactive: #3D2010;
+  --color-separator:       rgba(200,146,42,0.12);
+  --radius-button:         16px;
+  --btn-top:               #E8C972;
+  --btn-bottom:            #9C7A28;
+  --btn-border:            #F5E2A0;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           none;
+  --texture-brightness:    1;
+  --texture-contrast:      1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0;
+}
+
+:root[data-theme="F"] {
+  --color-background:      #0E0E0E;
+  --color-surface:         rgba(27,27,27,0.82);
+  --color-accent:          #C8CDD4;
+  --color-text:            #E0DDD6;
+  --color-text-secondary:  #888888;
+  --color-tabbar-bg:       #050505;
+  --color-tabbar-active:   #C8CDD4;
+  --color-tabbar-inactive: #2A2A2A;
+  --color-separator:       rgba(200,205,212,0.10);
+  --radius-button:         16px;
+  --btn-top:               #C8CDD4;
+  --btn-bottom:            #7A8088;
+  --btn-border:            #EFF2F5;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/BlackWoodTexture.png');
+  --texture-brightness:    1.35;
+  --texture-contrast:      2.8;
+  --texture-saturate:      0.4;
+  --texture-overlay-opacity: 0.0;
+}
+
+:root[data-theme="G"] {
+  --color-background:      #2A1A08;
+  --color-surface:         rgba(58,40,20,0.82);
+  --color-accent:          #C8CDD4;
+  --color-text:            #F0EDE8;
+  --color-text-secondary:  #B0A898;
+  --color-tabbar-bg:       #0F0600;
+  --color-tabbar-active:   #C8CDD4;
+  --color-tabbar-inactive: #6A6050;
+  --color-separator:       rgba(200,205,212,0.10);
+  --radius-button:         16px;
+  --btn-top:               #C8CDD4;
+  --btn-bottom:            #7A8088;
+  --btn-border:            #EFF2F5;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/WalnutWoodTexture.png');
+  --texture-brightness:    1.0;
+  --texture-contrast:      1.0;
+  --texture-saturate:      1.0;
+  --texture-overlay-opacity: 0.0;
+}
+
+:root[data-theme="H"] {
+  --color-background:      #0D1528;
+  --color-surface:         rgba(22,32,58,0.82);
+  --color-accent:          #C9A84C;
+  --color-text:            #EDEFF5;
+  --color-text-secondary:  #8A93A8;
+  --color-tabbar-bg:       #081020;
+  --color-tabbar-active:   #C9A84C;
+  --color-tabbar-inactive: #303A50;
+  --color-separator:       rgba(201,168,76,0.12);
+  --radius-button:         16px;
+  --btn-top:               #E8C972;
+  --btn-bottom:            #9C7A28;
+  --btn-border:            #F5E2A0;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/TextileNavyTexture.png');
+  --texture-brightness:    0.85;
+  --texture-contrast:      1.2;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.15;
+}
+
+:root[data-theme="I"] {
+  --color-background:      #0C1A0A;
+  --color-surface:         rgba(22,40,26,0.82);
+  --color-accent:          #E87722;
+  --color-text:            #ECF0E8;
+  --color-text-secondary:  #8AA080;
+  --color-tabbar-bg:       #061004;
+  --color-tabbar-active:   #E87722;
+  --color-tabbar-inactive: #2E4028;
+  --color-separator:       rgba(232,119,34,0.12);
+  --radius-button:         16px;
+  --btn-top:               #F0913F;
+  --btn-bottom:            #B85812;
+  --btn-border:            #F4A862;
+  --btn-fg:                #FFFFFF;
+  --theme-light:           0;
+  --texture-url:           url('/textures/TextileForestTexture.png');
+  --texture-brightness:    0.8;
+  --texture-contrast:      1.3;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.2;
+}
+
+:root[data-theme="J"] {
+  --color-background:      #151A08;
+  --color-surface:         rgba(35,42,20,0.82);
+  --color-accent:          #D4890A;
+  --color-text:            #EEF0E2;
+  --color-text-secondary:  #9AA078;
+  --color-tabbar-bg:       #0E1204;
+  --color-tabbar-active:   #D4890A;
+  --color-tabbar-inactive: #3A4020;
+  --color-separator:       rgba(212,137,10,0.12);
+  --radius-button:         16px;
+  --btn-top:               #B89160;
+  --btn-bottom:            #6E5430;
+  --btn-border:            #D4B383;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/TextileOliveTexture.png');
+  --texture-brightness:    0.8;
+  --texture-contrast:      1.2;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.2;
+}
+
+:root[data-theme="K"] {
+  --color-background:      #1A0A02;
+  --color-surface:         rgba(42,20,8,0.82);
+  --color-accent:          #C4803A;
+  --color-text:            #F5E8D8;
+  --color-text-secondary:  #B09070;
+  --color-tabbar-bg:       #120600;
+  --color-tabbar-active:   #C4803A;
+  --color-tabbar-inactive: #4A3020;
+  --color-separator:       rgba(196,128,58,0.12);
+  --radius-button:         16px;
+  --btn-top:               #E8C972;
+  --btn-bottom:            #9C7A28;
+  --btn-border:            #F5E2A0;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/CognacLeatherTexture.png');
+  --texture-brightness:    0.9;
+  --texture-contrast:      1.1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.1;
+}
+
+:root[data-theme="L"] {
+  --color-background:      #080606;
+  --color-surface:         rgba(22,22,22,0.82);
+  --color-accent:          #8A9BA8;
+  --color-text:            #E4E6E8;
+  --color-text-secondary:  #808890;
+  --color-tabbar-bg:       #020202;
+  --color-tabbar-active:   #8A9BA8;
+  --color-tabbar-inactive: #2A2E32;
+  --color-separator:       rgba(138,155,168,0.12);
+  --radius-button:         16px;
+  --btn-top:               #C8CDD4;
+  --btn-bottom:            #7A8088;
+  --btn-border:            #EFF2F5;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/BlackLeatherTexture.png');
+  --texture-brightness:    1.1;
+  --texture-contrast:      1.3;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.05;
+}
+
+:root[data-theme="M"] {
+  --color-background:      #06080C;
+  --color-surface:         rgba(17,21,28,0.82);
+  --color-accent:          #4A9FE0;
+  --color-text:            #E6EAF0;
+  --color-text-secondary:  #7888A0;
+  --color-tabbar-bg:       #04060A;
+  --color-tabbar-active:   #4A9FE0;
+  --color-tabbar-inactive: #283040;
+  --color-separator:       rgba(74,159,224,0.12);
+  --radius-button:         16px;
+  --btn-top:               #C8CDD4;
+  --btn-bottom:            #7A8088;
+  --btn-border:            #EFF2F5;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/CarbonTexture.png');
+  --texture-brightness:    0.9;
+  --texture-contrast:      1.4;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.15;
+}
+
+:root[data-theme="N"] {
+  --color-background:      #080A0C;
+  --color-surface:         rgba(20,24,28,0.82);
+  --color-accent:          #3A7FCC;
+  --color-text:            #E2E6EA;
+  --color-text-secondary:  #788490;
+  --color-tabbar-bg:       #050708;
+  --color-tabbar-active:   #3A7FCC;
+  --color-tabbar-inactive: #262E36;
+  --color-separator:       rgba(58,127,204,0.12);
+  --radius-button:         16px;
+  --btn-top:               rgba(255,255,255,0.18);
+  --btn-bottom:            rgba(255,255,255,0.06);
+  --btn-border:            rgba(255,255,255,0.30);
+  --btn-fg:                #E2E6EA;
+  --theme-light:           0;
+  --texture-url:           url('/textures/SlateTexture.png');
+  --texture-brightness:    0.85;
+  --texture-contrast:      1.2;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.15;
+}
+
+:root[data-theme="O"] {
+  --color-background:      #120A04;
+  --color-surface:         rgba(32,20,10,0.82);
+  --color-accent:          #E07020;
+  --color-text:            #F2E6DA;
+  --color-text-secondary:  #A88868;
+  --color-tabbar-bg:       #0C0602;
+  --color-tabbar-active:   #E07020;
+  --color-tabbar-inactive: #402818;
+  --color-separator:       rgba(224,112,32,0.12);
+  --radius-button:         16px;
+  --btn-top:               #D89466;
+  --btn-bottom:            #8A4A28;
+  --btn-border:            #EFB593;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/CortenSteelTexture.png');
+  --texture-brightness:    0.9;
+  --texture-contrast:      1.2;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.1;
+}
+
+:root[data-theme="P"] {
+  --color-background:      #0A0806;
+  --color-surface:         rgba(24,20,16,0.82);
+  --color-accent:          #C9A84C;
+  --color-text:            #F0E8D8;
+  --color-text-secondary:  #A89878;
+  --color-tabbar-bg:       #070504;
+  --color-tabbar-active:   #C9A84C;
+  --color-tabbar-inactive: #3A3220;
+  --color-separator:       rgba(201,168,76,0.12);
+  --radius-button:         16px;
+  --btn-top:               #E8C972;
+  --btn-bottom:            #9C7A28;
+  --btn-border:            #F5E2A0;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/WalnutBurlTexture.png');
+  --texture-brightness:    0.95;
+  --texture-contrast:      1.1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.05;
+}
+
+:root[data-theme="Q"] {
+  --color-background:      #180A02;
+  --color-surface:         rgba(40,20,8,0.82);
+  --color-accent:          #C87830;
+  --color-text:            #F5E6D2;
+  --color-text-secondary:  #AC8C68;
+  --color-tabbar-bg:       #100600;
+  --color-tabbar-active:   #C87830;
+  --color-tabbar-inactive: #402818;
+  --color-separator:       rgba(200,120,48,0.12);
+  --radius-button:         16px;
+  --btn-top:               #B89160;
+  --btn-bottom:            #6E5430;
+  --btn-border:            #D4B383;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/WalnutBurlWarmTexture.png');
+  --texture-brightness:    0.9;
+  --texture-contrast:      1.1;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.1;
+}
+
+:root[data-theme="R"] {
+  --color-background:      #060810;
+  --color-surface:         rgba(18,22,30,0.82);
+  --color-accent:          #8090A8;
+  --color-text:            #E4E8EE;
+  --color-text-secondary:  #7A8498;
+  --color-tabbar-bg:       #04060C;
+  --color-tabbar-active:   #8090A8;
+  --color-tabbar-inactive: #283040;
+  --color-separator:       rgba(128,144,168,0.12);
+  --radius-button:         16px;
+  --btn-top:               #C8CDD4;
+  --btn-bottom:            #7A8088;
+  --btn-border:            #EFF2F5;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/RivetedSteelTexture.png');
+  --texture-brightness:    0.9;
+  --texture-contrast:      1.3;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.1;
+}
+
+:root[data-theme="S"] {
+  --color-background:      #120800;
+  --color-surface:         rgba(34,18,8,0.82);
+  --color-accent:          #B87040;
+  --color-text:            #F2E2D2;
+  --color-text-secondary:  #A88868;
+  --color-tabbar-bg:       #0C0500;
+  --color-tabbar-active:   #B87040;
+  --color-tabbar-inactive: #3E2818;
+  --color-separator:       rgba(184,112,64,0.12);
+  --radius-button:         16px;
+  --btn-top:               #D89466;
+  --btn-bottom:            #8A4A28;
+  --btn-border:            #EFB593;
+  --btn-fg:                #1A1717;
+  --theme-light:           0;
+  --texture-url:           url('/textures/CopperTexture.png');
+  --texture-brightness:    0.85;
+  --texture-contrast:      1.2;
+  --texture-saturate:      1;
+  --texture-overlay-opacity: 0.1;
+}
