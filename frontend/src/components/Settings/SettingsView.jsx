@@ -187,7 +187,7 @@ export default function SettingsView() {
 
       <SectionTitle>Pitch-Shift Frequenz</SectionTitle>
       <div className="px-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-        Pitch-Shift aktiv im Browser und wird zur iOS-App synchronisiert.
+        Pitch-Shift ist im Browser aktiv und wird im Konto gespeichert.
       </div>
       <div className="flex gap-2 px-4 py-2 overflow-x-auto scroll-area">
         {FREQUENCIES.map((f) => {
