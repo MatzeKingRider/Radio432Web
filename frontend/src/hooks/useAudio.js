@@ -13,6 +13,9 @@ import { useSettingsStore } from '../store/settingsStore'
 // AnalyserNode also nur Stille liefert (alle Bins == 0/128), schalten wir auf
 // einen simulierten Modus um, der realistische, trägheitsbehaftete Pegel
 // erzeugt. So crasht die App nie und die Visualizer bleiben lebendig.
+//
+// Lifecycle: Der PitchShift-Node (und der AudioContext) werden bewusst nicht
+// disposed. Der Hook ist ein Singleton -> Context-Lifetime = App-Lifetime.
 
 export function useAudio() {
   const audioRef = useRef(null)
@@ -72,9 +75,23 @@ export function useAudio() {
       sourceCreatedRef.current = true
       // PitchShift hinter dem Analyser einhaengen, damit der Visualizer die
       // Original-Frequenzen sieht. .toDestination() verbindet ihn mit dem Output.
+      // windowSize: Fensterlaenge des Pitch-Shift-Algorithmus; 0.08s =
+      // Kompromiss zwischen Latenz und Artefakten.
       const pitchShift = new Tone.PitchShift({ pitch: 0, windowSize: 0.08 }).toDestination()
+      // Initialen Pitch sofort aus dem Store setzen. Der frequency-useEffect
+      // kann schon gelaufen sein, als pitchShiftRef noch null war (early return).
+      // Ohne das spielt der erste Stream faelschlich mit Pitch 0 (= 432 Hz Basis),
+      // obwohl das Backend evtl. eine andere Frequenz geladen hat.
+      const initialFrequency = useSettingsStore.getState().frequency || 432
+      const initialSemitones = 12 * Math.log2(initialFrequency / 432)
+      // Rundung verhindert Float-Jitter bei kleinen Frequenzaenderungen.
+      pitchShift.pitch = Math.round(initialSemitones * 100) / 100
       source.connect(analyser)
-      analyser.connect(pitchShift.input)
+      // analyser ist ein nativer AudioNode, pitchShift.input ein Tone.js-Wrapper
+      // (_Gain). Nativer analyser.connect(pitchShift.input) wirft zur Laufzeit
+      // TypeError ("Overload resolution failed") -> Tone.connect() ueberbruegt
+      // nativen und Tone-Graphen korrekt.
+      Tone.connect(analyser, pitchShift)
       ctxRef.current = ctx
       analyserRef.current = analyser
       pitchShiftRef.current = pitchShift
