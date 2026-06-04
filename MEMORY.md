@@ -68,7 +68,7 @@ Alle Endpunkte implementiert und getestet:
 
 ---
 
-## Stand Frontend (fertig ✅, Stand 2026-06-04)
+## Stand Frontend (99% fertig ⏳ — nur Pitch-Shifting ausstehend, Stand 2026-06-04)
 
 ### Implementiert
 - React 18 + Vite 5 + Tailwind 3 + Zustand 4 + PWA
@@ -93,8 +93,10 @@ Alle Endpunkte implementiert und getestet:
 ---
 
 ## Nächste Schritte
+- [ ] **Pitch-Shift via Tone.js implementieren** (NÄCHSTE SESSION — Sub-Agent-Ansatz, ~2h)
+  - Siehe: `/Users/matze/.claude/plans/pitch-shift-tone-js.md`
+  - Siehe: `/Users/matze/Entwicklung/Radio432/Radio432Web/PITCH_SHIFT_ANALYSIS.md`
 - [ ] iOS WebSyncService.swift implementieren (Favoriten + Settings sync)
 - [ ] Deployment auf Linux Mac Mini (rsync + docker compose up)
 - [ ] GitHub Repo anlegen: Radio432Web
 - [ ] ICY-Metadaten Proxy im Backend (optionale Erweiterung)
-- [ ] Pitch-Shift via Production-Grade AudioWorklet oder Tone.js (später, wenn nötig)
