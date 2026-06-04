@@ -1,9 +1,14 @@
 # Pitch-Shifting Analysis — Radio432Web
 
+> **STATUS: ✅ DONE (2026-06-04)** — Option A (Tone.js) implementiert und verifiziert.
+> Branch `feat/tone-pitch-shift`, ready für Review/Merge.
+> Verifiziert: 432→0, 528→+3.47, 396→−1.51, 963→+13.88 Halbtöne. 0 Bugs.
+> Der Abschnitt unten dokumentiert die vorausgegangene Analyse und gescheiterten Versuche.
+
 ## Problem
 Die Frequenzauswahl (396–963 Hz) ist die **Kernfunktion** der App. Ohne funktionierendes Pitch-Shifting ist die App für den Nutzer wertlos.
 
-**Status:** Nicht implementiert. Custom Web Audio API AudioWorklet-Ansatz gescheitert.
+**Status:** ✅ Implementiert via Tone.js PitchShift (Option A). Custom Web Audio API AudioWorklet-Ansatz war zuvor gescheitert.
 
 ---
 
