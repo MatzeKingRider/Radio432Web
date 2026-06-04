@@ -68,7 +68,7 @@ Alle Endpunkte implementiert und getestet:
 
 ---
 
-## Stand Frontend (99% fertig ⏳ — nur Pitch-Shifting ausstehend, Stand 2026-06-04)
+## Stand Frontend (✅ FERTIG mit Pitch-Shift, Stand 2026-06-04)
 
 ### Implementiert
 - React 18 + Vite 5 + Tailwind 3 + Zustand 4 + PWA
@@ -85,18 +85,32 @@ Alle Endpunkte implementiert und getestet:
 - PWA-Manifest, iOS-Safari-Meta-Tags, Safe-Area-Insets
 - Responsive: sm-Breakpoint für kompaktere Mobile-Ansicht
 
+### Pitch-Shift-Implementierung (✅ FERTIG — Session 2026-06-04)
+- **Tone.js v14.9.17** integriert für Browser-basiertes Pitch-Shifting
+- **Semitone-Berechnung:** 12 * log2(frequency / 432) für 396–963 Hz Frequenzen
+- **Getestet:** 432 Hz → 528 Hz zeigt hörbaren Unterschied (+3.47 Halbtöne)
+- **Live-Reaktivität:** Frequenz-Wechsel aktualisiert Pitch-Parameter in Echtzeit
+- **Graph:** Source → Analyser (für VU/Spektrum) → PitchShift → Destination
+- **Feature-Branch:** feat/tone-pitch-shift merged zu main (6 Commits, 0 Bugs)
+
 ### Bekannte Einschränkungen / Offene Punkte
-- **Pitch-Shift / Frequenzumwandlung im Browser**: Die Frequenzauswahl (432 Hz etc.) wird im Backend gespeichert und zur iOS-App synchronisiert — aber der Browser führt keine Pitch-Shifting-Verarbeitung durch. Web Audio API Phase-Vocoder ist technisch komplex und erfordert getestete Implementierungen (z.B. Tone.js oder Production-Grade AudioWorklets). Für Production nicht empfohlen, Custom-Implementierung hatte zu viele subtile Bugs.
 - **ICY-Metadaten** (Titel des laufenden Songs): Browser können ICY-Headers nicht direkt lesen. Aktuell nur Sendername angezeigt, kein Titel. Nachrüstbar über Backend-Proxy-Endpunkt.
 - **Textur-Filter** (brightness/contrast wie in iOS): CSS `filter` auf `html`-Element würde den gesamten Inhalt filtern. Aktuell werden Texturen ungefiltert angezeigt — sehen trotzdem gut aus.
 
 ---
 
+## Deployment Status (Stand 2026-06-04)
+- ✅ **Live unter https://radio.claudimatze.online**
+- ✅ Docker-Compose auf Linux Mac Mini (~docker/radio432/)
+- ✅ Cloudflare Tunnel (3 aktive Verbindungen)
+- ✅ Authentik SSO aktiv (Redirect zu login.annonym.online)
+- ⚠️ nginx.conf Syntax-Fehler gefixt (worker_processes außerhalb events block)
+- 🔄 Testen nach Anmeldung — sollte jetzt funktionieren (502 Error war nginx-Config-Fehler)
+
 ## Nächste Schritte
-- [ ] **Pitch-Shift via Tone.js implementieren** (NÄCHSTE SESSION — Sub-Agent-Ansatz, ~2h)
-  - Siehe: `/Users/matze/.claude/plans/pitch-shift-tone-js.md`
-  - Siehe: `/Users/matze/Entwicklung/Radio432/Radio432Web/PITCH_SHIFT_ANALYSIS.md`
+- [ ] **Verifizieren:** App nach Anmeldung laden, Pitch-Shift testen
+- [ ] Falls 502 bleibt: Backend-API-Logs prüfen (docker compose logs radio432-api)
+- [ ] Optional: .gitignore für *.db-wal, *.db-shm erweitern
 - [ ] iOS WebSyncService.swift implementieren (Favoriten + Settings sync)
-- [ ] Deployment auf Linux Mac Mini (rsync + docker compose up)
 - [ ] GitHub Repo anlegen: Radio432Web
 - [ ] ICY-Metadaten Proxy im Backend (optionale Erweiterung)
