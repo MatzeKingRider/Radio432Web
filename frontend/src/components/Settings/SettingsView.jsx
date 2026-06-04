@@ -1,6 +1,8 @@
 import { useFavoritesStore } from '../../store/favoritesStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import ThemePicker from './ThemePicker'
+import VUMeterPreview from './VUMeterPreview'
+import SpectrumPreview from './SpectrumPreview'
 
 const VU_STYLES = [
   ['analogClassic', 'Analog Classic'],
@@ -46,7 +48,7 @@ function SectionTitle({ children }) {
 }
 
 // Horizontaler Scroll mit Vorschau-Kacheln (Name + Farb-Preview).
-function StyleScroller({ options, value, onChange }) {
+function StyleScroller({ options, value, onChange, PreviewComponent, previewColor = '' }) {
   return (
     <div className="flex gap-3 px-4 py-2 overflow-x-auto scroll-area">
       {options.map(([id, name]) => {
@@ -62,8 +64,14 @@ function StyleScroller({ options, value, onChange }) {
               transform: isActive ? 'scale(1.03)' : 'none',
             }}
           >
-            <div className="h-10 rounded-lg"
-              style={{ background: 'linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 30%, black))' }} />
+            <div className="h-10 rounded-lg overflow-hidden">
+              {PreviewComponent ? (
+                <PreviewComponent style={id} customColor={previewColor} />
+              ) : (
+                <div className="h-full w-full"
+                  style={{ background: 'linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 30%, black))' }} />
+              )}
+            </div>
             <span className="text-[12px] font-medium leading-tight" style={{ color: 'var(--color-text)' }}>
               {name}
             </span>
@@ -81,6 +89,10 @@ export default function SettingsView() {
   const setVuStyle = useSettingsStore((s) => s.setVuStyle)
   const spectrumStyle = useSettingsStore((s) => s.spectrumStyle)
   const setSpectrumStyle = useSettingsStore((s) => s.setSpectrumStyle)
+  const vuColor = useSettingsStore((s) => s.vuColor)
+  const setVuColor = useSettingsStore((s) => s.setVuColor)
+  const spectrumColor = useSettingsStore((s) => s.spectrumColor)
+  const setSpectrumColor = useSettingsStore((s) => s.setSpectrumColor)
   const buttonMaterial = useSettingsStore((s) => s.buttonMaterial)
   const setButtonMaterial = useSettingsStore((s) => s.setButtonMaterial)
   const frequency = useSettingsStore((s) => s.frequency)
@@ -93,9 +105,63 @@ export default function SettingsView() {
 
       <SectionTitle>Visualizer</SectionTitle>
       <div className="px-4 pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>VU-Meter Stil</div>
-      <StyleScroller options={VU_STYLES} value={vuStyle} onChange={setVuStyle} />
+      <StyleScroller options={VU_STYLES} value={vuStyle} onChange={setVuStyle} PreviewComponent={VUMeterPreview} previewColor={vuColor} />
       <div className="px-4 pt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Spektrum-Analyser Stil</div>
-      <StyleScroller options={SPECTRUM_STYLES} value={spectrumStyle} onChange={setSpectrumStyle} />
+      <StyleScroller options={SPECTRUM_STYLES} value={spectrumStyle} onChange={setSpectrumStyle} PreviewComponent={SpectrumPreview} previewColor={spectrumColor} />
+
+      <SectionTitle>Visualizer-Farbe</SectionTitle>
+      <div className="px-4 py-2 flex flex-col gap-3">
+        {/* VU-Meter Farbe */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>VU-Meter</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVuColor('')}
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium"
+              style={{
+                background: !vuColor ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: !vuColor ? 'var(--btn-fg)' : 'var(--color-text)',
+                border: '1px solid var(--color-separator)',
+              }}
+            >
+              Theme
+            </button>
+            <input
+              type="color"
+              value={vuColor || '#C9A84C'}
+              onChange={(e) => setVuColor(e.target.value)}
+              className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0"
+              style={{ background: 'none' }}
+              title="VU-Meter Farbe wählen"
+            />
+          </div>
+        </div>
+        {/* Spektrum-Analyser Farbe */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Spektrum</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSpectrumColor('')}
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium"
+              style={{
+                background: !spectrumColor ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: !spectrumColor ? 'var(--btn-fg)' : 'var(--color-text)',
+                border: '1px solid var(--color-separator)',
+              }}
+            >
+              Theme
+            </button>
+            <input
+              type="color"
+              value={spectrumColor || '#1ED12E'}
+              onChange={(e) => setSpectrumColor(e.target.value)}
+              className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0"
+              style={{ background: 'none' }}
+              title="Spektrum Farbe wählen"
+            />
+          </div>
+        </div>
+      </div>
 
       <SectionTitle>Button-Material</SectionTitle>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 px-4 py-2">
@@ -121,7 +187,7 @@ export default function SettingsView() {
 
       <SectionTitle>Pitch-Shift Frequenz</SectionTitle>
       <div className="px-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-        Wird in der iOS-App angewendet. Im Browser gespeichert.
+        Pitch-Shift aktiv im Browser und wird zur iOS-App synchronisiert.
       </div>
       <div className="flex gap-2 px-4 py-2 overflow-x-auto scroll-area">
         {FREQUENCIES.map((f) => {

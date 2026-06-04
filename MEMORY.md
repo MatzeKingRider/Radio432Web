@@ -36,13 +36,18 @@ Deployment: ~/docker/radio432web/ auf Linux Mac Mini (ssh linux)
 **Pflicht: Node 20** — `better-sqlite3` kompiliert NICHT unter Node 25 (aktuelles Homebrew-Default).
 
 ```bash
-# Lokaler Start:
+# Lokaler Start Backend:
 NODE20=/Users/matze/.nvm/versions/node/v20.20.2/bin
-PATH="$NODE20:$PATH" npm install
-DB_PATH=./dev.db PATH="$NODE20:$PATH" node server.js
+DB_PATH=/Users/matze/Entwicklung/Radio432/Radio432Web/backend/dev.db \
+PATH="$NODE20:$PATH" node /Users/matze/Entwicklung/Radio432/Radio432Web/backend/server.js
 
-# Im Docker-Container: läuft automatisch (Dockerfile = node:20-alpine)
+# Lokaler Start Frontend (separates Terminal):
+cd /Users/matze/Entwicklung/Radio432/Radio432Web/frontend && npm run dev
+# → http://localhost:5173 (oder nächster freier Port)
 ```
+
+### CF-Access-Header im Vite-Proxy
+`vite.config.js` injiziert automatisch `cf-access-authenticated-user-email: dev@local` für alle `/api/`-Anfragen. Kein manueller Header-Set nötig.
 
 ### Curl-Schnelltest lokal
 ```bash
@@ -50,35 +55,48 @@ curl http://localhost:3001/api/health
 curl -H "cf-access-authenticated-user-email: matthias.schunk@yahoo.com" http://localhost:3001/api/favorites
 ```
 
-### CF-Access-Header simulieren
-Für lokale Tests den Header `cf-access-authenticated-user-email` manuell setzen — im echten Betrieb setzt Cloudflare/nginx ihn automatisch.
+---
 
-## Stand Backend (2026-06-04 — fertig)
+## Stand Backend (fertig ✅)
 
-Alle 10 Dateien implementiert, reviewed, getestet:
-
-| Datei | Status |
-|-------|--------|
-| package.json | ✅ |
-| server.js | ✅ |
-| Dockerfile | ✅ |
-| db/database.js | ✅ |
-| db/schema.sql | ✅ |
-| middleware/auth.js | ✅ |
-| routes/favorites.js | ✅ |
-| routes/apikey.js | ✅ |
-| routes/settings.js | ✅ (inkl. Frequenz-Präferenz) |
-| routes/sync.js | ✅ |
-
-### Endpunkte
-- `GET /api/health` — kein Auth
+Alle Endpunkte implementiert und getestet:
+- `GET /api/health`
 - `GET/POST/DELETE /api/favorites`, `PUT /api/favorites/reorder`
 - `GET /api/apikey`
-- `GET/PUT /api/settings` — Frequenz (396/417/432/440/444/528/639/741/852/963 Hz)
+- `GET/PUT /api/settings` — Frequenz-Präferenz (396/417/432/440/444/528/639/741/852/963 Hz)
 - `POST /api/sync/import`
 
-## Offene Schritte
-- [ ] Frontend React-App scaffolden (Vite + Tailwind + PWA)
-- [ ] iOS WebSyncService.swift implementieren
+---
+
+## Stand Frontend (fertig ✅, Stand 2026-06-04)
+
+### Implementiert
+- React 18 + Vite 5 + Tailwind 3 + Zustand 4 + PWA
+- 19 Themes (A–S) mit CSS Custom Properties + Hintergrundtexturen (PNGs aus iOS-App)
+- Theme-Kacheln im ThemePicker zeigen echte Textur-Vorschau
+- Player (sticky oben): VU-Meter L+R + Spektrum-Analyser, Lautstärke
+- Fullscreen-Player: Artwork, ⏮ Pause/Play ⏭, Mute, Lautstärke, VU+Spektrum, Textur-Hintergrund
+- 9 VU-Meter-Stile mit Live-Vorschau in Settings + Farbwähler
+- 8 Spektrum-Stile mit Live-Vorschau in Settings + Farbwähler
+- Favoriten-Tab: Backend-Sync, DnD-Sortierung, Offline-Fallback localStorage
+- Suche-Tab: RadioBrowser API, Mirror-Fallback (de1→de2→nl1)
+- Einstellungen: Theme, Visualizer-Stil, Visualizer-Farbe, Button-Material, Frequenz-Auswahl
+- Web Audio API für echte VU/Spektrum-Analyse, CORS-Fallback auf Simulation
+- PWA-Manifest, iOS-Safari-Meta-Tags, Safe-Area-Insets
+- Responsive: sm-Breakpoint für kompaktere Mobile-Ansicht
+
+### Audio-Verarbeitung
+- **Pitch-Shift / Frequenzumwandlung** (✅ implementiert 2026-06-04): Custom AudioWorklet mit Phase-Vocoder. Frequenzauswahl (396-963 Hz) wird sofort im Browser angewendet + zur iOS-App synchronisiert. Basiert auf iOS-Formel: `pitchCents = 1200 * log2(hz/440)`. Latenz ~46ms (FRAME_SIZE=2048). Implementierung: `frontend/public/pitch-shifter-worklet.js`, Anbindung in `useAudio.js` + `SettingsView.jsx`.
+
+### Bekannte Einschränkungen / Offene Punkte
+- **ICY-Metadaten** (Titel des laufenden Songs): Browser können ICY-Headers nicht direkt lesen. Aktuell nur Sendername angezeigt, kein Titel. Nachrüstbar über Backend-Proxy-Endpunkt.
+- **Textur-Filter** (brightness/contrast wie in iOS): CSS `filter` auf `html`-Element würde den gesamten Inhalt filtern. Aktuell werden Texturen ungefiltert angezeigt — sehen trotzdem gut aus.
+
+---
+
+## Nächste Schritte
+- [x] Pitch-Shift via Web Audio API (abgeschlossen 2026-06-04)
+- [ ] iOS WebSyncService.swift implementieren (Favoriten + Settings sync)
 - [ ] Deployment auf Linux Mac Mini (rsync + docker compose up)
 - [ ] GitHub Repo anlegen: Radio432Web
+- [ ] ICY-Metadaten Proxy im Backend (optionale Erweiterung)

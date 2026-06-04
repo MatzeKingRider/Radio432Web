@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../store/playerStore'
+import { useSettingsStore } from '../store/settingsStore'
 
 // Zentraler Audio-Hook: ein HTML5-Audio-Element + Web Audio API.
 //
@@ -12,11 +13,30 @@ import { usePlayerStore } from '../store/playerStore'
 // einen simulierten Modus um, der realistische, trägheitsbehaftete Pegel
 // erzeugt. So crasht die App nie und die Visualizer bleiben lebendig.
 
+// Hilfsfunktion: Hz → Cents Konversion (identisch zu iOS AVAudioUnitTimePitch)
+const CENT_TABLE = {
+  396: -180.45,
+  417: -91.21,
+  432: -31.77,
+  440: 0,
+  444: 15.67,
+  528: 311.98,
+  639: 644.58,
+  741: 901.96,
+  852: 1143.56,
+  963: 1356.46,
+}
+
+function centForHz(hz) {
+  return CENT_TABLE[hz] ?? 1200 * Math.log2(hz / 440)
+}
+
 export function useAudio() {
   const audioRef = useRef(null)
   const ctxRef = useRef(null)
   const analyserRef = useRef(null)
   const sourceRef = useRef(null)
+  const pitchNodeRef = useRef(null)
   const silenceFramesRef = useRef(0)
   const sourceCreatedRef = useRef(false)
   const silenceIntervalRef = useRef(null)
@@ -39,7 +59,27 @@ export function useAudio() {
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
 
-  function ensureContext() {
+  // Reaktive Pitch-Updates bei Frequenz-Wechsel
+  useEffect(() => {
+    return useSettingsStore.subscribe(
+      (state) => state.frequency,
+      (freq) => {
+        const node = pitchNodeRef.current
+        if (!node) return
+        const ctx = ctxRef.current
+        const cents = centForHz(freq)
+        if (ctx) {
+          node.parameters
+            .get('pitchCents')
+            .linearRampToValueAtTime(cents, ctx.currentTime + 0.05)
+        } else {
+          node.parameters.get('pitchCents').value = cents
+        }
+      }
+    )
+  }, [])
+
+  async function ensureContext() {
     if (ctxRef.current) return
     // createMediaElementSource() darf pro Audio-Element nur EINMAL aufgerufen
     // werden. War der Aufbau schon mal erfolgreich oder ist endgueltig
@@ -49,19 +89,37 @@ export function useAudio() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext
       ctx = new AudioCtx()
+
+      // Worklet laden (vor Graph-Aufbau)
+      await ctx.audioWorklet.addModule('/pitch-shifter-worklet.js')
+
+      const pitchNode = new AudioWorkletNode(ctx, 'pitch-shifter', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+      })
+      // Initialwert aus Store setzen (Default = 432 Hz → -31.77 Cents)
+      const initHz = useSettingsStore.getState().frequency
+      pitchNode.parameters.get('pitchCents').value = centForHz(initHz)
+      pitchNodeRef.current = pitchNode
+
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 1024
       analyser.smoothingTimeConstant = 0.8
       const source = ctx.createMediaElementSource(audioRef.current)
       sourceCreatedRef.current = true
-      source.connect(analyser)
+
+      // Graph: source → pitch → analyser → destination
+      source.connect(pitchNode)
+      pitchNode.connect(analyser)
       analyser.connect(ctx.destination)
+
       ctxRef.current = ctx
       analyserRef.current = analyser
       sourceRef.current = source
       setAnalyser(analyser)
     } catch (e) {
-      // MediaElementSource konnte nicht erstellt werden (z.B. CORS).
+      // MediaElementSource konnte nicht erstellt werden (z.B. CORS) oder Worklet-Load fehlgeschlagen.
       // Halb-erstellten Context schliessen, damit er nicht leakt.
       if (ctx) {
         try { ctx.close() } catch (_) { /* ignore */ }
@@ -69,6 +127,7 @@ export function useAudio() {
       ctxRef.current = null
       analyserRef.current = null
       sourceRef.current = null
+      pitchNodeRef.current = null
       // Ein erneuter Aufbau ist auf demselben Element unmoeglich
       // -> permanent in den Simulationsmodus wechseln.
       setSimulated(true)
@@ -98,7 +157,7 @@ export function useAudio() {
     const a = audioRef.current
     if (!a) return
     try {
-      ensureContext()
+      await ensureContext()
       if (ctxRef.current && ctxRef.current.state === 'suspended') {
         await ctxRef.current.resume()
       }

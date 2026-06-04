@@ -21,3 +21,36 @@ PATH="$NODE20:$PATH" npm install
 **Gilt für alle Sessions:** Wenn `npm install` oder `node server.js` lokal fehlschlägt, zuerst Node-Version prüfen (`node --version`). System-Node via Homebrew ist aktuell v25.
 
 ---
+
+## Hintergrundtexturen nicht sichtbar (gelöst)
+
+**Problem:** Hintergrundtexturen wurden per `z-index: -10` auf `position: fixed`-Divs angezeigt — die `body`-Hintergrundfarbe überdeckte sie.
+
+**Ursache:** Fixed-Elemente mit negativem z-index landen unter dem Viewport-Hintergrund wenn `body`/`html` eine explizite Hintergrundfarbe hat.
+
+**Lösung:** Textur direkt auf `html`-Element per CSS Custom Property (`--texture-url`) + `background-image` — funktioniert zuverlässig ohne z-index-Konflikte. `body::before` Pseudo-Element-Ansatz hatte das gleiche Problem.
+
+---
+
+## Pitch-Shift / Frequenzumwandlung (gelöst 2026-06-04)
+
+**Problem:** Die Frequenzauswahl (432 Hz, 528 Hz etc.) in den Web-Einstellungen hat im Browser keine hörbare Wirkung.
+
+**Ursache:** Fehlende Web Audio API Implementierung. iOS nutzt `AVAudioUnitTimePitch`, Browser brauchte einen Phase-Vocoder.
+
+**Lösung:** Custom AudioWorklet mit Phase-Vocoder (Radix-2 FFT, Larson-Schema Phasenpropagation, Overlap-Add Synthese).
+
+**Implementierung:**
+- `frontend/public/pitch-shifter-worklet.js`: 248 Zeilen, FRAME_SIZE=2048, HOP_SIZE=512 (75% Overlap), Latenz ~46ms
+- `frontend/src/hooks/useAudio.js`: AudioWorklet laden, pitchNode im Graph zwischen source/analyser, reactive Subscription auf `frequency` State
+- `frontend/src/components/Settings/SettingsView.jsx`: Hint-Text aktualisiert
+- Formel: `pitchCents = 1200 * log2(hz/440)` — identisch zu iOS
+- Bypass bei 440 Hz (0 Cents) — direkte Kopie ohne FFT-Overhead
+
+**Testing (lokal erfolgreich):**
+- Worklet lädt fehlerfrei unter Vite Dev-Server
+- AudioContext wird korrekt aufgebaut mit 4 Nodes (source → pitch → analyser → destination)
+- Frequenzwechsel wird im Frontend-State aktualisiert
+- Pitch-Parameter werden via linearRampToValueAtTime aktualisiert (sanfte Übergänge)
+
+---
