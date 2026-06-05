@@ -70,7 +70,8 @@ router.post('/confirm', (req, res) => {
 
     // API keys currently have no expiry in the DB, so we don't advertise one.
     // Real key expiration is a future feature.
-    return res.json({ apiKey: user.api_key });
+    // Feldname snake_case (api_key) — die iOS-App dekodiert via CodingKeys "api_key".
+    return res.json({ api_key: user.api_key });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to confirm pairing token' });
   }
