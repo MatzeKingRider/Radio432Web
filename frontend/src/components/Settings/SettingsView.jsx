@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useFavoritesStore } from '../../store/favoritesStore'
 import { useSettingsStore } from '../../store/settingsStore'
+import { pairApi } from '../../api/client'
 import ThemePicker from './ThemePicker'
 import VUMeterPreview from './VUMeterPreview'
 import SpectrumPreview from './SpectrumPreview'
+import QRCode from '../common/QRCode'
 
 const VU_STYLES = [
   ['analogClassic', 'Analog Classic'],
@@ -106,6 +109,27 @@ export default function SettingsView() {
   const setButtonCornerRadius = useSettingsStore((s) => s.setButtonCornerRadius)
   const frequency = useSettingsStore((s) => s.frequency)
   const setFrequency = useSettingsStore((s) => s.setFrequency)
+
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrData, setQrData] = useState(null)
+  const [qrError, setQrError] = useState(null)
+
+  const generateQR = async () => {
+    setQrLoading(true)
+    setQrError(null)
+    try {
+      const data = await pairApi.init()
+      setQrData(data.qrData)
+    } catch (err) {
+      setQrError(
+        err.status === 401 || err.status === 403
+          ? 'Nicht angemeldet — Verbindung zum Backend nötig.'
+          : 'QR-Code konnte nicht erzeugt werden.'
+      )
+    } finally {
+      setQrLoading(false)
+    }
+  }
 
   return (
     <div className="pb-4">
@@ -237,6 +261,52 @@ export default function SettingsView() {
             </button>
           )
         })}
+      </div>
+
+      <SectionTitle>Mit Mobilgerät verbinden</SectionTitle>
+      <div className="px-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+        QR-Code erzeugen und in der iOS-App scannen, um dieses Konto zu koppeln.
+      </div>
+      <div className="px-4 py-2 flex flex-col gap-3">
+        <button
+          onClick={generateQR}
+          disabled={qrLoading}
+          className="self-start px-4 py-2 rounded-full text-[13px] font-medium transition-colors disabled:opacity-60"
+          style={{ background: 'var(--color-accent)', color: 'var(--btn-fg)' }}
+        >
+          {qrLoading ? 'Wird generiert…' : 'QR-Code generieren'}
+        </button>
+
+        {qrData && (
+          <div
+            className="flex flex-col items-center gap-2 p-4 rounded-xl self-start"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
+          >
+            <QRCode text={qrData} size={224} />
+            <p className="text-[12px] text-center" style={{ color: 'var(--color-text-secondary)' }}>
+              In der iOS-App scannen zum Verbinden
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+              Gültig für 5 Minuten
+            </p>
+            <button
+              onClick={() => setQrData(null)}
+              className="text-[13px] underline"
+              style={{ color: 'var(--color-text)' }}
+            >
+              Schließen
+            </button>
+          </div>
+        )}
+
+        {qrError && (
+          <div
+            className="px-3 py-2 rounded-lg text-[13px]"
+            style={{ background: 'rgba(220,38,38,0.15)', color: '#dc2626' }}
+          >
+            {qrError}
+          </div>
+        )}
       </div>
 
       <SectionTitle>Status</SectionTitle>
