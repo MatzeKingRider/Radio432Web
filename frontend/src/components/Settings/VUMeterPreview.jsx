@@ -16,6 +16,10 @@ function dbToAngle(db) {
   return ((db - DB_MIN) / DB_RANGE) * ANGLE_RANGE + ANGLE_MIN
 }
 
+function linearToAngle(v) {
+  return dbToAngle(-20) + (v / 100.0) * (dbToAngle(0) - dbToAngle(-20))
+}
+
 function resolveAccent(customColor) {
   if (customColor && customColor !== '') return customColor
   return getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#C9A84C'
@@ -127,6 +131,9 @@ function drawArcStyle(ctx, w, h, level, style, accent) {
     drawTicks(ctx, cx, cy, R, style, accent)
   }
 
+  // Innere Skala minimal (nur für Preview)
+  drawInnerScalePreview(ctx, cx, cy, R, style)
+
   const clamped = Math.max(DB_MIN, Math.min(DB_MAX, dbVal))
   drawNeedle(ctx, cx, cy, R, dbToAngle(clamped), needleColor)
   ctx.restore()
@@ -201,6 +208,25 @@ function drawZone(ctx, cx, cy, R, dbA, dbB, color) {
   ctx.closePath()
   ctx.fillStyle = color
   ctx.fill()
+}
+
+// Minimale innere Skala für Preview (nur Ticks, keine Labels — zu klein)
+function drawInnerScalePreview(ctx, cx, cy, R, style) {
+  const tickColor = style === 'vintageBroadcast'
+    ? 'rgba(80,200,80,0.5)'
+    : style === 'steelMirror'
+      ? 'rgba(200,200,200,0.5)'
+      : 'rgba(224,158,36,0.5)'
+
+  // Nur Ticks alle 20, keine Labels (Preview ist zu klein)
+  for (let v = 0; v <= 100.0001; v += 20) {
+    const rad = ((linearToAngle(v) - 90) * Math.PI) / 180
+    const outer = R * 0.58
+    const inner = R * 0.50
+    line(ctx, cx + outer * Math.cos(rad), cy + outer * Math.sin(rad),
+      cx + inner * Math.cos(rad), cy + inner * Math.sin(rad),
+      tickColor, 0.6)
+  }
 }
 
 // Vereinfachte Tick-Darstellung — nur feine Striche, keine Labels (Vorschau ist klein).

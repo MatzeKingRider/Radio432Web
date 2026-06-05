@@ -365,40 +365,31 @@ function linearToAngle(v) {
 }
 
 function drawInnerScale(ctx, cx, cy, R, style) {
-  const labeledLinear = [0, 20, 40, 60, 80, 100]
   const tickColor = style === 'vintageBroadcast'
     ? 'rgba(80,200,80,0.7)'
     : style === 'steelMirror'
       ? 'rgba(200,200,200,0.7)'
       : 'rgba(224,158,36,0.7)'
 
-  // Ticks alle 10, labeled bei 0,20,40,...100
+  // Ticks alle 10, Labels nur bei 0, 50, 100
   for (let v = 0; v <= 100.0001; v += 10) {
     const rad = ((linearToAngle(v) - 90) * Math.PI) / 180
     const outer = R * 0.58
-    const inner = R * 0.50  // labeled ticks
+    const inner = R * 0.50
     line(ctx, cx + outer * Math.cos(rad), cy + outer * Math.sin(rad),
       cx + inner * Math.cos(rad), cy + inner * Math.sin(rad),
-      tickColor, 1.2)
+      tickColor, 0.9)
 
-    // Label 0, 20, 40, 60, 80, 100
-    const lx = cx + R * 0.42 * Math.cos(rad)
-    const ly = cy + R * 0.42 * Math.sin(rad)
-    ctx.fillStyle = tickColor
-    ctx.font = `${Math.max(6, R * 0.14)}px ui-monospace, monospace`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(`${Math.round(v)}`, lx, ly)
-  }
-
-  // Minor ticks dazwischen (alle 10, nicht gelabelt): R * 0.535
-  for (let v = 5; v <= 95; v += 10) {
-    const rad = ((linearToAngle(v) - 90) * Math.PI) / 180
-    const outer = R * 0.58
-    const inner = R * 0.535
-    line(ctx, cx + outer * Math.cos(rad), cy + outer * Math.sin(rad),
-      cx + inner * Math.cos(rad), cy + inner * Math.sin(rad),
-      'rgba(255,255,255,0.25)', 0.7)
+    // Label nur bei 0, 50, 100 (weniger Clutter)
+    if ([0, 50, 100].includes(v)) {
+      const lx = cx + R * 0.38 * Math.cos(rad)
+      const ly = cy + R * 0.38 * Math.sin(rad)
+      ctx.fillStyle = tickColor
+      ctx.font = `${Math.max(5, R * 0.09)}px ui-monospace, monospace`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(`${Math.round(v)}`, lx, ly)
+    }
   }
 }
 
