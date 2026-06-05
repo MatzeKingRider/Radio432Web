@@ -186,16 +186,21 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
           <Volume2 size={20} style={{ color: 'var(--color-text-secondary)' }} />
         </div>
 
-        {/* Visualizer-Reihe */}
-        <div className="flex items-stretch gap-2 w-full max-w-[460px] h-[120px]">
-          <div className="h-full" style={{ aspectRatio: '4 / 3' }}>
-            <VUMeter label="L" style={vuStyle} customColor={vuColor} />
+        {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
+        <div className="flex flex-col gap-2 w-full max-w-[460px]">
+          {/* VU-Meter-Reihe: beide gleich breit */}
+          <div className="flex gap-2 h-[80px] sm:h-[100px]">
+            <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+              <VUMeter label="L" style={vuStyle} customColor={vuColor} />
+            </div>
+            <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+              <VUMeter label="R" style={vuStyle} customColor={vuColor} />
+            </div>
           </div>
-          <div className="flex-1 h-full">
+
+          {/* Spektrum-Reihe: volle Breite */}
+          <div className="h-[80px] sm:h-[100px] w-full">
             <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
-          </div>
-          <div className="h-full" style={{ aspectRatio: '4 / 3' }}>
-            <VUMeter label="R" style={vuStyle} customColor={vuColor} />
           </div>
         </div>
       </div>
