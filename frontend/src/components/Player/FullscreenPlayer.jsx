@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../store/settingsStore'
 import ThemedBackground from '../common/ThemedBackground'
 import VUMeter from './VUMeter'
 import SpectrumAnalyzer from './SpectrumAnalyzer'
+import { useArtwork } from '../../hooks/useArtwork'
 
 // Vollbild-Player im Portrait-Layout (angelehnt an iOS NowPlayingScreen).
 // Slide-up-Animation beim Öffnen, Schließen via X-Button oder Swipe-Down.
@@ -21,10 +22,9 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
 
   const [shown, setShown] = useState(false)
   const [dragY, setDragY] = useState(0)
-  const [imgFailed, setImgFailed] = useState(false)
   const startYRef = useRef(null)
 
-  useEffect(() => { setImgFailed(false) }, [station?.id])
+  const { src: imgSrc, onError: onImgError } = useArtwork(station)
 
   // Slide-up nach dem Mount auslösen.
   useEffect(() => {
@@ -92,13 +92,13 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
           className="aspect-square w-[80vw] max-w-[460px] rounded-3xl overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
         >
-          {station?.favicon && !imgFailed ? (
+          {imgSrc ? (
             <img
-              src={station.favicon}
+              src={imgSrc}
               alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain"
-              onError={() => setImgFailed(true)}
+              onError={onImgError}
             />
           ) : (
             <Radio size={120} style={{ color: 'var(--color-accent)' }} />

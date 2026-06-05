@@ -1,5 +1,6 @@
 import { Radio, Play, Plus, Check } from 'lucide-react'
 import { useFavoritesStore } from '../../store/favoritesStore'
+import { useArtwork } from '../../hooks/useArtwork'
 
 // Suchergebnis-Zeile: [44px Logo] [Name/Land] [Play] [Hinzufügen].
 export default function StationResult({ station, onPlay }) {
@@ -7,15 +8,17 @@ export default function StationResult({ station, onPlay }) {
   const add = useFavoritesStore((s) => s.add)
   const isFav = favorites.some((f) => f.id === station.id)
 
+  const { src: imgSrc, onError: onImgError } = useArtwork(station)
+
   return (
     <div className="flex items-center gap-3 px-3 py-2.5"
       style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-separator)' }}>
       <button onClick={() => onPlay(station)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
         <div className="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-background)', border: '1px solid var(--color-separator)' }}>
-          {station.favicon ? (
-            <img src={station.favicon} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          {imgSrc ? (
+            <img src={imgSrc} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+              onError={onImgError} />
           ) : (
             <Radio size={20} style={{ color: 'var(--color-accent)' }} />
           )}

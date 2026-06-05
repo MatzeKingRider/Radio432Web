@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Radio, Play, Square, Trash2, GripVertical } from 'lucide-react'
 import { usePlayerStore } from '../../store/playerStore'
+import { useArtwork } from '../../hooks/useArtwork'
 
 // Eine Favoriten-Zeile: [Drag] [44px Logo] [Name/Host] [Play] [Löschen].
 export default function FavoriteItem({ station, onPlay, onRemove }) {
@@ -11,6 +12,8 @@ export default function FavoriteItem({ station, onPlay, onRemove }) {
   const currentId = usePlayerStore((s) => s.currentStation?.id)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const isCurrent = currentId === station.id
+
+  const { src: imgSrc, onError: onImgError } = useArtwork(station)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -40,9 +43,9 @@ export default function FavoriteItem({ station, onPlay, onRemove }) {
           className="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-background)', border: '1px solid var(--color-separator)' }}
         >
-          {station.favicon ? (
-            <img src={station.favicon} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          {imgSrc ? (
+            <img src={imgSrc} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+              onError={onImgError} />
           ) : (
             <Radio size={20} style={{ color: 'var(--color-accent)' }} />
           )}

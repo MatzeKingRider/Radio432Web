@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
 import { Radio, Play, Square } from 'lucide-react'
 import { usePlayerStore } from '../../store/playerStore'
+import { useArtwork } from '../../hooks/useArtwork'
 
 // Kopfbereich des Players: Artwork, Sendername/Status, Play-/Stop-Button.
 // Tap auf Artwork + Text (nicht den Button) öffnet den Fullscreen-Player via onExpand.
@@ -9,8 +9,7 @@ export default function NowPlaying({ onToggle, onExpand }) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
 
-  const [imgFailed, setImgFailed] = useState(false)
-  useEffect(() => { setImgFailed(false) }, [station?.id])
+  const { src: imgSrc, onError: onImgError } = useArtwork(station)
 
   return (
     <div className="flex items-center gap-3 px-4 pt-3">
@@ -25,13 +24,13 @@ export default function NowPlaying({ onToggle, onExpand }) {
           className="aspect-square w-[64px] sm:w-[88px] max-w-[88px] rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
         >
-          {station?.favicon && !imgFailed ? (
+          {imgSrc ? (
             <img
-              src={station.favicon}
+              src={imgSrc}
               alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain"
-              onError={() => setImgFailed(true)}
+              onError={onImgError}
             />
           ) : (
             <Radio size={40} style={{ color: 'var(--color-accent)' }} />
