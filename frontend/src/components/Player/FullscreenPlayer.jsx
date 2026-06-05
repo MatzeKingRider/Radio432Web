@@ -27,7 +27,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
   const [dragY, setDragY] = useState(0)
   const startYRef = useRef(null)
 
-  const { src: imgSrc, onError: onImgError } = useArtwork(station)
+  const { src: imgSrc, onError: onImgError } = useArtwork(station, nowPlayingArtist, nowPlayingTitle)
 
   // Slide-up nach dem Mount auslösen.
   useEffect(() => {
@@ -192,7 +192,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
           {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
           <div className="flex flex-col gap-2 w-full">
             {/* VU-Meter-Reihe: beide gleich breit */}
-            <div className="flex gap-2 h-[80px] sm:h-[100px]">
+            <div className="flex gap-2">
               <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
                 <VUMeter label="L" style={vuStyle} customColor={vuColor} />
               </div>

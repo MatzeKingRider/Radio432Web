@@ -224,6 +224,9 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
     drawTicks(ctx, cx, cy, R, style, accent)
   }
 
+  // Innere Skala (0–100)
+  drawInnerScale(ctx, cx, cy, R, style)
+
   // Nadel
   const clamped = Math.max(DB_MIN, Math.min(DB_MAX, dbVal))
   drawNeedle(ctx, cx, cy, R, dbToAngle(clamped), needleColor)
@@ -313,6 +316,13 @@ function drawCarbonProStyle(ctx, w, h, level) {
 
 // Einfache Balken-Darstellung (classic) — Balken wächst von unten, Farbe = accent.
 function drawBarStyle(ctx, w, h, level, label, accent) {
+  const cx = w / 2
+  const R = Math.min(w * 0.48, h * 0.86) * 0.84
+  const cy = h * 0.5 + R * 0.5
+
+  // Innere Skala (0–100)
+  drawInnerScale(ctx, cx, cy, R, 'classic')
+
   const padX = w * 0.22
   const padY = h * 0.14
   const barW = w - padX * 2
@@ -347,6 +357,49 @@ function drawZone(ctx, cx, cy, R, dbA, dbB, color) {
   ctx.closePath()
   ctx.fillStyle = color
   ctx.fill()
+}
+
+// Innere Skala: 0–100 prozentual, linear entsprechend dB (-20 dB = 0 %, 0 dB = 100 %)
+function linearToAngle(v) {
+  return dbToAngle(-20) + (v / 100.0) * (dbToAngle(0) - dbToAngle(-20))
+}
+
+function drawInnerScale(ctx, cx, cy, R, style) {
+  const labeledLinear = [0, 20, 40, 60, 80, 100]
+  const tickColor = style === 'vintageBroadcast'
+    ? 'rgba(80,200,80,0.7)'
+    : style === 'steelMirror'
+      ? 'rgba(200,200,200,0.7)'
+      : 'rgba(224,158,36,0.7)'
+
+  // Ticks alle 10, labeled bei 0,20,40,...100
+  for (let v = 0; v <= 100.0001; v += 10) {
+    const rad = ((linearToAngle(v) - 90) * Math.PI) / 180
+    const outer = R * 0.58
+    const inner = R * 0.50  // labeled ticks
+    line(ctx, cx + outer * Math.cos(rad), cy + outer * Math.sin(rad),
+      cx + inner * Math.cos(rad), cy + inner * Math.sin(rad),
+      tickColor, 1.2)
+
+    // Label 0, 20, 40, 60, 80, 100
+    const lx = cx + R * 0.42 * Math.cos(rad)
+    const ly = cy + R * 0.42 * Math.sin(rad)
+    ctx.fillStyle = tickColor
+    ctx.font = `${Math.max(6, R * 0.14)}px ui-monospace, monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(`${Math.round(v)}`, lx, ly)
+  }
+
+  // Minor ticks dazwischen (alle 10, nicht gelabelt): R * 0.535
+  for (let v = 5; v <= 95; v += 10) {
+    const rad = ((linearToAngle(v) - 90) * Math.PI) / 180
+    const outer = R * 0.58
+    const inner = R * 0.535
+    line(ctx, cx + outer * Math.cos(rad), cy + outer * Math.sin(rad),
+      cx + inner * Math.cos(rad), cy + inner * Math.sin(rad),
+      'rgba(255,255,255,0.25)', 0.7)
+  }
 }
 
 // Stil-abhängige Tick-Palette. showLabels steuert dB-Zahlenwerte.
@@ -385,24 +438,33 @@ function drawTicks(ctx, cx, cy, R, style = 'analogClassic', accent) {
     [-20, '-20', false], [-10, '-10', false], [-5, '-5', false],
     [0, '0', true], [3, '+3', true],
   ]
-  // feine Striche alle 0.5 dB (filigran)
+  // Fine ticks — nach AUSSEN (R → R*1.06)
   for (let f = -20; f <= 3.0001; f += 0.5) {
     const db = Math.round(f * 10) / 10
     if (majors.some((m) => m[0] === db)) continue
     const rad = ((dbToAngle(db) - 90) * Math.PI) / 180
     const isRed = db > 0
     line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
-      cx + R * 0.92 * Math.cos(rad), cy + R * 0.92 * Math.sin(rad),
+      cx + R * 1.06 * Math.cos(rad), cy + R * 1.06 * Math.sin(rad),
       isRed ? p.fineRed : p.fine, 0.6)
   }
-  // Major-Striche + (optional) Labels
+  // Mid ticks (Zwischenmarken) — nach AUSSEN (R → R*1.09)
+  const midTicks = [-15, -7, -3, 1]
+  for (const db of midTicks) {
+    const rad = ((dbToAngle(db) - 90) * Math.PI) / 180
+    const isRed = db > 0
+    line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
+      cx + R * 1.09 * Math.cos(rad), cy + R * 1.09 * Math.sin(rad),
+      isRed ? p.majorRed : p.major, 0.9)
+  }
+  // Major ticks — nach AUSSEN (R → R*1.13)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (const [db, lbl, red] of majors) {
     const rad = ((dbToAngle(db) - 90) * Math.PI) / 180
     line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
-      cx + R * 0.82 * Math.cos(rad), cy + R * 0.82 * Math.sin(rad),
-      red ? p.majorRed : p.major, 1.2)
+      cx + R * 1.13 * Math.cos(rad), cy + R * 1.13 * Math.sin(rad),
+      red ? p.majorRed : p.major, 1.5)
     if (p.showLabels) {
       const lx = cx + R * 1.19 * Math.cos(rad)
       const ly = cy + R * 1.19 * Math.sin(rad)
@@ -422,10 +484,46 @@ function drawNeedle(ctx, cx, cy, R, angleDeg, color = NEEDLE) {
   line(ctx, cx + 0.6, cy + 0.6, tx + 0.6, ty + 0.6, 'rgba(0,0,0,0.5)', 1.1)
   // Nadel (filigran)
   line(ctx, cx, cy, tx, ty, color, 1.2)
-  // Drehpunkt
+  // Drehpunkt detailliert
+  drawPivot(ctx, cx, cy, R)
+}
+
+function drawPivot(ctx, cx, cy, R) {
+  const pivR = R * 0.062   // äußerer Ring (Schatten)
+  const pivB = R * 0.048   // Körper
+  const axR = pivB * 0.48  // Achse (center)
+  const hlR = axR * 0.45   // Highlight
+
+  // 1. Schatten-Ring (offset +1px): R * 0.062, schwarz
   ctx.beginPath()
-  ctx.arc(cx, cy, 2.2, 0, Math.PI * 2)
-  ctx.fillStyle = color
+  ctx.arc(cx + 1, cy + 1, pivR, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'
+  ctx.fill()
+
+  // 2. Äußerer Ring: R * 0.062, schwarz
+  ctx.beginPath()
+  ctx.arc(cx, cy, pivR, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.65)'
+  ctx.fill()
+
+  // 3. Körper: R * 0.048, Accent-Farbe (Amber für analogClassic, sonst neutral)
+  ctx.beginPath()
+  ctx.arc(cx, cy, pivB, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(165,165,165,1)'  // Grauton
+  ctx.fill()
+
+  // 4. Achse: R * 0.048 * 0.48, schwarz
+  ctx.beginPath()
+  ctx.arc(cx, cy, axR, 0, Math.PI * 2)
+  ctx.fillStyle = '#000000'
+  ctx.fill()
+
+  // 5. Highlight: klein, weiß, oben-links bei (-pivB*0.35, -pivB*0.35)
+  const hlx = cx - pivB * 0.35
+  const hly = cy - pivB * 0.35
+  ctx.beginPath()
+  ctx.arc(hlx, hly, hlR, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'
   ctx.fill()
 }
 

@@ -87,7 +87,7 @@ function drawArcStyle(ctx, w, h, level, style, accent) {
   }
 
   const cx = w / 2
-  const R = Math.min(w * 0.48, h * 0.86)
+  const R = Math.min(w * 0.48, h * 0.86) * 0.84
   const cy = h * 0.5 + R * 0.5
 
   ctx.save()
