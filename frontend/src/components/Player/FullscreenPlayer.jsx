@@ -94,7 +94,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
         <div className="flex flex-col items-center shrink-0 mb-6 md:mb-0">
           <div
             className="aspect-square w-[75vw] max-w-[380px] md:w-auto md:h-[min(70vh,600px)] rounded-3xl overflow-hidden flex items-center justify-center"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
+            style={{ background: 'transparent' }}
           >
             {imgSrc ? (
               <img
