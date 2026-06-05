@@ -9,8 +9,11 @@ export function useArtwork(station) {
   const sources = useMemo(() => buildArtworkSources(station), [station?.favicon, station?.homepage])
   const [index, setIndex] = useState(0)
 
-  // Bei Quellenwechsel zurück zur ersten Quelle.
-  useEffect(() => { setIndex(0) }, [sources])
+  // Bei Senderwechsel zurück zur ersten Quelle.
+  // Anhand der Sender-ID (nicht der sources-Referenz), da zwei Sender mit
+  // identischem favicon/homepage dieselbe Array-Referenz erzeugen würden
+  // und der Reset dann ausbliebe.
+  useEffect(() => { setIndex(0) }, [station?.id])
 
   const onError = useCallback(() => {
     setIndex((i) => i + 1)
