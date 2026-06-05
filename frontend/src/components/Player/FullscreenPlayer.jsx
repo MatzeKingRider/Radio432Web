@@ -7,7 +7,8 @@ import VUMeter from './VUMeter'
 import SpectrumAnalyzer from './SpectrumAnalyzer'
 import { useArtwork } from '../../hooks/useArtwork'
 
-// Vollbild-Player im Portrait-Layout (angelehnt an iOS NowPlayingScreen).
+// Vollbild-Player, responsiv: Mobile stapelt vertikal (Portrait, angelehnt an iOS
+// NowPlayingScreen), ab md:768px Side-by-Side (Artwork links, Controls rechts).
 // Slide-up-Animation beim Öffnen, Schließen via X-Button oder Swipe-Down.
 export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNext }) {
   const station = usePlayerStore((s) => s.currentStation)
@@ -88,117 +89,122 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 min-h-0">
-        {/* Artwork */}
-        <div
-          className="aspect-square w-[80vw] max-w-[460px] rounded-3xl overflow-hidden flex items-center justify-center shrink-0"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
-        >
-          {imgSrc ? (
-            <img
-              src={imgSrc}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
-              onError={onImgError}
+      <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-center md:gap-8 px-6 md:px-8 py-6 min-h-0 overflow-y-auto">
+        {/* Links: Artwork */}
+        <div className="flex flex-col items-center shrink-0 mb-6 md:mb-0">
+          <div
+            className="aspect-square w-[75vw] max-w-[380px] md:w-auto md:h-[min(70vh,600px)] rounded-3xl overflow-hidden flex items-center justify-center"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-separator)' }}
+          >
+            {imgSrc ? (
+              <img
+                src={imgSrc}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-contain"
+                onError={onImgError}
+              />
+            ) : (
+              <Radio size={120} style={{ color: 'var(--color-accent)' }} />
+            )}
+          </div>
+        </div>
+
+        {/* Rechts: Info + Controls */}
+        <div className="flex-1 flex flex-col items-center md:items-stretch gap-6 w-full md:min-w-0 md:max-w-[560px]">
+          {/* Text */}
+          <div className="text-center md:text-left w-full">
+            {/* Titel (oder Sendername, falls keine Metadaten) */}
+            <div className="text-[22px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
+              {nowPlayingTitle || station?.name || 'Kein Sender gewählt'}
+            </div>
+
+            {/* Interpret (oder Status, falls keine Metadaten) */}
+            <div className="text-[15px] truncate mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              {nowPlayingTitle && nowPlayingArtist ? nowPlayingArtist : error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : '—'}
+            </div>
+
+            {/* Sendername (kleiner, nur wenn Metadaten vorhanden) */}
+            {nowPlayingTitle && (
+              <div className="text-[12px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+                {station?.name}
+              </div>
+            )}
+          </div>
+
+          {/* Sender zurück / Play-Pause / Sender vor */}
+          <div className="flex items-center justify-center md:justify-start gap-6 shrink-0">
+            <button
+              onClick={onPrev}
+              disabled={!station}
+              aria-label="Vorheriger Sender"
+              className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
+            >
+              <SkipBack size={22} fill="currentColor" />
+            </button>
+
+            <button
+              onClick={onToggle}
+              disabled={!station}
+              aria-label={isPlaying ? 'Pause' : 'Wiedergabe'}
+              className="btn-material w-20 h-20 flex items-center justify-center disabled:opacity-40"
+            >
+              {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
+            </button>
+
+            <button
+              onClick={onNext}
+              disabled={!station}
+              aria-label="Nächster Sender"
+              className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
+            >
+              <SkipForward size={22} fill="currentColor" />
+            </button>
+          </div>
+
+          {/* Lautstärke */}
+          <div className="flex items-center gap-3 w-full">
+            <button
+              onClick={toggleMute}
+              aria-label={muted ? 'Ton an' : 'Stummschalten'}
+              className="w-9 h-9 flex items-center justify-center rounded-full shrink-0"
+              style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+            >
+              <VolIcon size={18} />
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{
+                accentColor: 'var(--color-accent)',
+                background: `linear-gradient(to right, var(--color-accent) ${volume * 100}%, var(--color-tabbar-inactive) ${volume * 100}%)`,
+              }}
+              aria-label="Lautstärke"
             />
-          ) : (
-            <Radio size={120} style={{ color: 'var(--color-accent)' }} />
-          )}
-        </div>
-
-        {/* Text */}
-        <div className="text-center w-full">
-          {/* Titel (oder Sendername, falls keine Metadaten) */}
-          <div className="text-[22px] font-bold truncate max-w-[90vw]" style={{ color: 'var(--color-text)' }}>
-            {nowPlayingTitle || station?.name || 'Kein Sender gewählt'}
+            <Volume2 size={20} style={{ color: 'var(--color-text-secondary)' }} />
           </div>
 
-          {/* Interpret (oder Status, falls keine Metadaten) */}
-          <div className="text-[15px] truncate mt-1 max-w-[90vw]" style={{ color: 'var(--color-text-secondary)' }}>
-            {nowPlayingTitle && nowPlayingArtist ? nowPlayingArtist : error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : '—'}
-          </div>
-
-          {/* Sendername (kleiner, nur wenn Metadaten vorhanden) */}
-          {nowPlayingTitle && (
-            <div className="text-[12px] truncate max-w-[90vw]" style={{ color: 'var(--color-text-secondary)' }}>
-              {station?.name}
+          {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
+          <div className="flex flex-col gap-2 w-full">
+            {/* VU-Meter-Reihe: beide gleich breit */}
+            <div className="flex gap-2 h-[80px] sm:h-[100px]">
+              <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+                <VUMeter label="L" style={vuStyle} customColor={vuColor} />
+              </div>
+              <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+                <VUMeter label="R" style={vuStyle} customColor={vuColor} />
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Sender zurück / Play-Pause / Sender vor */}
-        <div className="flex items-center justify-center gap-6 shrink-0">
-          <button
-            onClick={onPrev}
-            disabled={!station}
-            aria-label="Vorheriger Sender"
-            className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
-          >
-            <SkipBack size={22} fill="currentColor" />
-          </button>
-
-          <button
-            onClick={onToggle}
-            disabled={!station}
-            aria-label={isPlaying ? 'Pause' : 'Wiedergabe'}
-            className="btn-material w-20 h-20 flex items-center justify-center disabled:opacity-40"
-          >
-            {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
-          </button>
-
-          <button
-            onClick={onNext}
-            disabled={!station}
-            aria-label="Nächster Sender"
-            className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
-          >
-            <SkipForward size={22} fill="currentColor" />
-          </button>
-        </div>
-
-        {/* Lautstärke */}
-        <div className="flex items-center gap-3 w-full max-w-[460px]">
-          <button
-            onClick={toggleMute}
-            aria-label={muted ? 'Ton an' : 'Stummschalten'}
-            className="w-9 h-9 flex items-center justify-center rounded-full shrink-0"
-            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
-          >
-            <VolIcon size={18} />
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
-            style={{
-              accentColor: 'var(--color-accent)',
-              background: `linear-gradient(to right, var(--color-accent) ${volume * 100}%, var(--color-tabbar-inactive) ${volume * 100}%)`,
-            }}
-            aria-label="Lautstärke"
-          />
-          <Volume2 size={20} style={{ color: 'var(--color-text-secondary)' }} />
-        </div>
-
-        {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
-        <div className="flex flex-col gap-2 w-full max-w-[460px]">
-          {/* VU-Meter-Reihe: beide gleich breit */}
-          <div className="flex gap-2 h-[80px] sm:h-[100px]">
-            <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
-              <VUMeter label="L" style={vuStyle} customColor={vuColor} />
+            {/* Spektrum-Reihe: volle Breite */}
+            <div className="h-[80px] sm:h-[100px] w-full">
+              <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
             </div>
-            <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
-              <VUMeter label="R" style={vuStyle} customColor={vuColor} />
-            </div>
-          </div>
-
-          {/* Spektrum-Reihe: volle Breite */}
-          <div className="h-[80px] sm:h-[100px] w-full">
-            <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
           </div>
         </div>
       </div>
