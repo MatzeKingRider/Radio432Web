@@ -174,7 +174,7 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
   }
 
   const cx = w / 2
-  const R = Math.min(w * 0.48, h * 0.86)
+  const R = Math.min(w * 0.48, h * 0.86) * 0.84
   const cy = h * 0.5 + R * 0.5
 
   ctx.save()
@@ -227,12 +227,18 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
   // Nadel
   const clamped = Math.max(DB_MIN, Math.min(DB_MAX, dbVal))
   drawNeedle(ctx, cx, cy, R, dbToAngle(clamped), needleColor)
+
+  // Corner-Marker für classic/analogClassic (− links oben, + rechts oben)
+  if (style === 'analogClassic') {
+    drawCornerMarkers(ctx, cx, cy, R, accent)
+  }
+
   ctx.restore()
 
   // Studio: digitale dB-Anzeige rechts unten.
   if (studio) {
     ctx.fillStyle = accent
-    ctx.font = `${Math.max(8, w * 0.1)}px ui-monospace, monospace`
+    ctx.font = `${Math.max(7, R * 0.16)}px ui-monospace, monospace`
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
     ctx.fillText(`${Math.max(-60, dbVal).toFixed(1)} dB`, w - 5, h - 4)
@@ -240,7 +246,7 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
 
   // Kanal-Label
   ctx.fillStyle = labelColor
-  ctx.font = `600 ${w * 0.11}px ui-rounded, system-ui, sans-serif`
+  ctx.font = `600 ${Math.max(8, R * 0.22)}px ui-rounded, system-ui, sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label, cx, cy - R * 0.2)
@@ -398,10 +404,10 @@ function drawTicks(ctx, cx, cy, R, style = 'analogClassic', accent) {
       cx + R * 0.82 * Math.cos(rad), cy + R * 0.82 * Math.sin(rad),
       red ? p.majorRed : p.major, 1.2)
     if (p.showLabels) {
-      const lx = cx + R * 0.74 * Math.cos(rad)
-      const ly = cy + R * 0.74 * Math.sin(rad)
+      const lx = cx + R * 1.19 * Math.cos(rad)
+      const ly = cy + R * 1.19 * Math.sin(rad)
       ctx.fillStyle = red ? p.labelRed : p.label
-      ctx.font = `${Math.max(7, R * 0.1)}px ui-monospace, monospace`
+      ctx.font = `${Math.max(7, R * 0.16)}px ui-monospace, monospace`
       ctx.fillText(lbl, lx, ly)
     }
   }
@@ -421,6 +427,28 @@ function drawNeedle(ctx, cx, cy, R, angleDeg, color = NEEDLE) {
   ctx.arc(cx, cy, 2.2, 0, Math.PI * 2)
   ctx.fillStyle = color
   ctx.fill()
+}
+
+function drawCornerMarkers(ctx, cx, cy, R, accent) {
+  // − Marker links oben bei -20 dB (start), + Marker rechts oben bei +3 dB (end)
+  const fontSize = Math.max(7, R * 0.16)
+  ctx.fillStyle = 'rgba(224,158,36,0.92)'  // Amber für −
+  ctx.font = `${fontSize}px ui-monospace, monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  // − Marker (links oben, -20 dB)
+  const radMin = ((dbToAngle(-20) - 90) * Math.PI) / 180
+  const lx = cx + R * 1.25 * Math.cos(radMin)
+  const ly = cy + R * 1.25 * Math.sin(radMin)
+  ctx.fillText('−', lx, ly)
+
+  // + Marker (rechts oben, +3 dB)
+  ctx.fillStyle = 'rgba(230,35,19,0.92)'  // Rot für +
+  const radMax = ((dbToAngle(3) - 90) * Math.PI) / 180
+  const rx = cx + R * 1.25 * Math.cos(radMax)
+  const ry = cy + R * 1.25 * Math.sin(radMax)
+  ctx.fillText('+', rx, ry)
 }
 
 function line(ctx, x1, y1, x2, y2, color, width) {
