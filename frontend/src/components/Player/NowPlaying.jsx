@@ -9,8 +9,9 @@ export default function NowPlaying({ onToggle, onExpand }) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
   const nowPlayingTitle = usePlayerStore((s) => s.nowPlayingTitle)
+  const nowPlayingArtist = usePlayerStore((s) => s.nowPlayingArtist)
 
-  const { src: imgSrc, onError: onImgError } = useArtwork(station)
+  const { src: imgSrc, onError: onImgError } = useArtwork(station, nowPlayingArtist, nowPlayingTitle)
 
   return (
     <div className="flex items-center gap-3 px-4 pt-3">
