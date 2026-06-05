@@ -1,10 +1,157 @@
 const express = require('express');
 const http = require('http');
 const https = require('https');
+const dns = require('dns').promises;
+const net = require('net');
 const router = express.Router();
 
 const REQUEST_TIMEOUT_MS = 8000;
 const MAX_BYTES = 256 * 1024; // safety cap so we never buffer a whole stream
+
+// Error classes so the route can map failures to HTTP status codes without
+// brittle message-regex matching.
+class InvalidUrlError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'InvalidUrlError';
+    this.statusCode = 400;
+  }
+}
+
+class BlockedUrlError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'BlockedUrlError';
+    this.statusCode = 403;
+  }
+}
+
+class UpstreamError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'UpstreamError';
+    this.statusCode = 502;
+  }
+}
+
+// Hostname patterns that must never be fetched (loopback, private, link-local).
+const BLOCKED_HOST_PATTERNS = [
+  /^localhost$/i,
+  /^127\./, // 127.0.0.0/8 loopback
+  /^0\./, // 0.0.0.0/8
+  /^192\.168\./, // 192.168.0.0/16 private
+  /^10\./, // 10.0.0.0/8 private
+  /^172\.(1[6-9]|2\d|3[01])\./, // 172.16.0.0/12 private
+  /^169\.254\./, // 169.254.0.0/16 link-local (incl. cloud metadata 169.254.169.254)
+  /^::1$/, // IPv6 loopback
+  /^::$/, // IPv6 unspecified
+  /^fe80:/i, // IPv6 link-local
+  /^fc00:/i, // IPv6 unique-local
+  /^fd[0-9a-f]{2}:/i, // IPv6 unique-local (fd00::/8)
+];
+
+/**
+ * Returns true if the given IP address points into a private, loopback or
+ * link-local range. Works for both IPv4 and IPv6 (including IPv4-mapped IPv6).
+ *
+ * @param {string} ip
+ * @returns {boolean}
+ */
+function isBlockedIp(ip) {
+  if (!ip) return true;
+
+  // Unwrap IPv4-mapped IPv6 addresses like ::ffff:192.168.1.71
+  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (mapped) ip = mapped[1];
+
+  if (net.isIPv4(ip)) {
+    const parts = ip.split('.').map(Number);
+    const [a, b] = parts;
+    if (a === 127) return true; // loopback
+    if (a === 10) return true; // private
+    if (a === 0) return true; // "this" network
+    if (a === 192 && b === 168) return true; // private
+    if (a === 172 && b >= 16 && b <= 31) return true; // private
+    if (a === 169 && b === 254) return true; // link-local / metadata
+    return false;
+  }
+
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower === '::1' || lower === '::') return true;
+    if (lower.startsWith('fe80:')) return true; // link-local
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique-local
+    return false;
+  }
+
+  // Unknown format -> block to be safe.
+  return true;
+}
+
+/**
+ * Validates a stream URL against SSRF attacks. Rejects unsupported protocols,
+ * blocked hostnames and any URL whose DNS resolution lands on a private,
+ * loopback or link-local address (mitigates DNS-based bypasses).
+ *
+ * Throws InvalidUrlError or BlockedUrlError on failure.
+ *
+ * @param {string} urlStr
+ * @returns {Promise<URL>} the parsed URL when allowed
+ */
+async function validateStreamUrl(urlStr) {
+  let url;
+  try {
+    url = new URL(urlStr);
+  } catch (err) {
+    throw new InvalidUrlError(`Invalid URL: ${err.message}`);
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new InvalidUrlError(`Unsupported protocol: ${url.protocol}`);
+  }
+
+  const hostname = url.hostname.replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+
+  for (const pattern of BLOCKED_HOST_PATTERNS) {
+    if (pattern.test(hostname)) {
+      throw new BlockedUrlError(
+        `Blocked: cannot fetch from private range (${hostname})`
+      );
+    }
+  }
+
+  // If the hostname is a literal IP, validate it directly.
+  if (net.isIP(hostname)) {
+    if (isBlockedIp(hostname)) {
+      throw new BlockedUrlError(
+        `Blocked: cannot fetch from private range (${hostname})`
+      );
+    }
+    return url;
+  }
+
+  // Otherwise resolve DNS and make sure no resolved address is private.
+  let addresses;
+  try {
+    addresses = await dns.lookup(hostname, { all: true });
+  } catch (err) {
+    throw new InvalidUrlError(`Cannot resolve host: ${hostname}`);
+  }
+
+  if (!addresses.length) {
+    throw new InvalidUrlError(`Cannot resolve host: ${hostname}`);
+  }
+
+  for (const { address } of addresses) {
+    if (isBlockedIp(address)) {
+      throw new BlockedUrlError(
+        `Blocked: ${hostname} resolves to a private address (${address})`
+      );
+    }
+  }
+
+  return url;
+}
 
 /**
  * Connects to an ICY/Icecast/Shoutcast stream, reads the inline metadata block
@@ -13,19 +160,11 @@ const MAX_BYTES = 256 * 1024; // safety cap so we never buffer a whole stream
  * @param {string} streamUrl
  * @returns {Promise<{ title: string|null, artist: string|null }>}
  */
-function fetchICYMetadata(streamUrl) {
+async function fetchICYMetadata(streamUrl) {
+  // SSRF guard: validate (and DNS-check) before opening any socket.
+  const parsed = await validateStreamUrl(streamUrl);
+
   return new Promise((resolve, reject) => {
-    let parsed;
-    try {
-      parsed = new URL(streamUrl);
-    } catch (e) {
-      return reject(new Error('Invalid stream URL'));
-    }
-
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return reject(new Error('Unsupported protocol'));
-    }
-
     const client = parsed.protocol === 'https:' ? https : http;
 
     const request = client.request(
@@ -90,9 +229,7 @@ function fetchICYMetadata(streamUrl) {
             return; // wait for the rest of the block
           }
 
-          const metaBlock = buffer
-            .slice(metaInt + 1, metaInt + 1 + metaLength)
-            .toString('utf8');
+          const metaBlock = buffer.slice(metaInt + 1, metaInt + 1 + metaLength);
 
           finish(parseStreamTitle(metaBlock));
         });
@@ -101,29 +238,51 @@ function fetchICYMetadata(streamUrl) {
         response.on('error', (err) => {
           if (!settled) {
             settled = true;
-            reject(err);
+            reject(new UpstreamError(err.message));
           }
         });
       }
     );
 
     request.setTimeout(REQUEST_TIMEOUT_MS, () => {
-      request.destroy(new Error('Stream request timed out'));
+      request.destroy(new UpstreamError('Stream request timed out'));
     });
 
-    request.on('error', (err) => reject(err));
+    request.on('error', (err) => {
+      reject(err instanceof UpstreamError ? err : new UpstreamError(err.message));
+    });
     request.end();
   });
+}
+
+/**
+ * Decodes ICY metadata bytes to a string. ICY/Shoutcast has no fixed charset;
+ * we try UTF-8 first and fall back to Latin-1 (ISO-8859-1) when the bytes are
+ * not valid UTF-8, which keeps umlauts (ä, ö, ü) readable for both encodings.
+ *
+ * @param {Buffer|string} input
+ * @returns {string}
+ */
+function decodeMeta(input) {
+  if (typeof input === 'string') return input;
+
+  const utf8 = input.toString('utf8');
+  // U+FFFD is the replacement char Node inserts for invalid UTF-8 sequences.
+  if (!utf8.includes('�')) return utf8;
+
+  return input.toString('latin1');
 }
 
 /**
  * Parses an ICY metadata block, e.g. `StreamTitle='Artist - Title';StreamUrl='...';`
  * Returns { title, artist }. Falls back to title-only when no " - " separator.
  *
- * @param {string} metaBlock
+ * @param {Buffer|string} metaBlockInput
  * @returns {{ title: string|null, artist: string|null }}
  */
-function parseStreamTitle(metaBlock) {
+function parseStreamTitle(metaBlockInput) {
+  const metaBlock = decodeMeta(metaBlockInput);
+
   // Match StreamTitle='...' (quoted) or StreamTitle=... up to the next field/null.
   const match =
     metaBlock.match(/StreamTitle='([^']*)'/) ||
@@ -133,7 +292,8 @@ function parseStreamTitle(metaBlock) {
     return { title: null, artist: null };
   }
 
-  const raw = match[1].trim();
+  // Drop any trailing NUL padding then trim whitespace.
+  const raw = match[1].replace(/\x00+$/, '').trim();
   if (!raw) {
     return { title: null, artist: null };
   }
@@ -154,20 +314,22 @@ router.get('/', async (req, res) => {
     return res.status(400).json({ error: 'url required' });
   }
 
-  let decoded;
+  // Express has already percent-decoded query values, so use `url` as-is.
   try {
-    decoded = decodeURIComponent(url);
-  } catch (e) {
-    return res.status(400).json({ error: 'Invalid url encoding' });
-  }
-
-  try {
-    const metadata = await fetchICYMetadata(decoded);
+    const metadata = await fetchICYMetadata(url);
     res.json(metadata);
   } catch (err) {
-    const status = /invalid|unsupported/i.test(err.message) ? 400 : 500;
+    const status = Number.isInteger(err.statusCode) ? err.statusCode : 500;
     res.status(status).json({ error: err.message });
   }
 });
 
 module.exports = router;
+module.exports.parseStreamTitle = parseStreamTitle;
+module.exports.fetchICYMetadata = fetchICYMetadata;
+module.exports.validateStreamUrl = validateStreamUrl;
+module.exports.isBlockedIp = isBlockedIp;
+module.exports.decodeMeta = decodeMeta;
+module.exports.InvalidUrlError = InvalidUrlError;
+module.exports.BlockedUrlError = BlockedUrlError;
+module.exports.UpstreamError = UpstreamError;
