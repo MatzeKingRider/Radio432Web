@@ -13,6 +13,9 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', version: '1.0.0' });
 });
 
+// Public routes (no auth — metadata is public from the stream itself)
+app.use('/api/meta', require('./routes/meta'));
+
 // Protected routes with auth middleware
 app.use('/api/favorites', authMiddleware, require('./routes/favorites'));
 app.use('/api/apikey', authMiddleware, require('./routes/apikey'));
