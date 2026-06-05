@@ -231,17 +231,12 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
   const clamped = Math.max(DB_MIN, Math.min(DB_MAX, dbVal))
   drawNeedle(ctx, cx, cy, R, dbToAngle(clamped), needleColor)
 
-  // Corner-Marker für classic/analogClassic (− links oben, + rechts oben)
-  if (style === 'analogClassic') {
-    drawCornerMarkers(ctx, cx, cy, R, accent)
-  }
-
   ctx.restore()
 
   // Studio: digitale dB-Anzeige rechts unten.
   if (studio) {
     ctx.fillStyle = accent
-    ctx.font = `${Math.max(7, R * 0.16)}px ui-monospace, monospace`
+    ctx.font = `${Math.max(6, R * 0.12)}px ui-monospace, monospace`
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
     ctx.fillText(`${Math.max(-60, dbVal).toFixed(1)} dB`, w - 5, h - 4)
@@ -460,7 +455,7 @@ function drawTicks(ctx, cx, cy, R, style = 'analogClassic', accent) {
       const lx = cx + R * 1.19 * Math.cos(rad)
       const ly = cy + R * 1.19 * Math.sin(rad)
       ctx.fillStyle = red ? p.labelRed : p.label
-      ctx.font = `${Math.max(7, R * 0.16)}px ui-monospace, monospace`
+      ctx.font = `${Math.max(6, R * 0.12)}px ui-monospace, monospace`
       ctx.fillText(lbl, lx, ly)
     }
   }

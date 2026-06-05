@@ -246,7 +246,7 @@ function drawTicks(ctx, cx, cy, R, style, accent) {
     const isRed = db > 0
     line(ctx, cx + R * Math.cos(rad), cy + R * Math.sin(rad),
       cx + R * 0.9 * Math.cos(rad), cy + R * 0.9 * Math.sin(rad),
-      isRed ? redColor : fineColor, 0.7)
+      isRed ? redColor : fineColor, 0.6)
   }
 }
 
