@@ -36,6 +36,13 @@ const BUTTON_MATERIALS = [
   ['standard', 'Standard', 'var(--color-accent)', 'color-mix(in srgb, var(--color-accent) 60%, black)'],
 ]
 
+const BUTTON_CORNER_RADII = [
+  ['square', 'Eckig'],
+  ['slight', 'Leicht gerundet'],
+  ['rounded', 'Stark gerundet'],
+  ['pill', 'Oval'],
+]
+
 const FREQUENCIES = [396, 417, 432, 440, 444, 528, 639, 741, 852, 963]
 
 function SectionTitle({ children }) {
@@ -95,6 +102,8 @@ export default function SettingsView() {
   const setSpectrumColor = useSettingsStore((s) => s.setSpectrumColor)
   const buttonMaterial = useSettingsStore((s) => s.buttonMaterial)
   const setButtonMaterial = useSettingsStore((s) => s.setButtonMaterial)
+  const buttonCornerRadius = useSettingsStore((s) => s.buttonCornerRadius)
+  const setButtonCornerRadius = useSettingsStore((s) => s.setButtonCornerRadius)
   const frequency = useSettingsStore((s) => s.frequency)
   const setFrequency = useSettingsStore((s) => s.setFrequency)
 
@@ -180,6 +189,27 @@ export default function SettingsView() {
             >
               <div className="h-9 rounded-lg" style={{ background: `linear-gradient(180deg, ${top} 0%, ${bottom} 100%)` }} />
               <span className="text-[12px] font-medium" style={{ color: 'var(--color-text)' }}>{name}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <SectionTitle>Button-Form</SectionTitle>
+      <div className="flex gap-2 px-4 py-2 overflow-x-auto scroll-area">
+        {BUTTON_CORNER_RADII.map(([id, name]) => {
+          const isActive = buttonCornerRadius === id
+          return (
+            <button
+              key={id}
+              onClick={() => setButtonCornerRadius(id)}
+              className="shrink-0 px-4 py-2 rounded-full text-[13px] font-medium transition-colors"
+              style={{
+                background: isActive ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: isActive ? 'var(--btn-fg)' : 'var(--color-text)',
+                border: isActive ? '2px solid var(--color-accent)' : '1px solid var(--color-separator)',
+              }}
+            >
+              {name}
             </button>
           )
         })}

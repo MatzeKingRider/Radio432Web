@@ -133,8 +133,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
             onClick={onPrev}
             disabled={!station}
             aria-label="Vorheriger Sender"
-            className="w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-40"
-            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+            className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
           >
             <SkipBack size={22} fill="currentColor" />
           </button>
@@ -143,7 +142,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
             onClick={onToggle}
             disabled={!station}
             aria-label={isPlaying ? 'Pause' : 'Wiedergabe'}
-            className="btn-material w-20 h-20 rounded-full flex items-center justify-center disabled:opacity-40"
+            className="btn-material w-20 h-20 flex items-center justify-center disabled:opacity-40"
           >
             {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
           </button>
@@ -152,8 +151,7 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
             onClick={onNext}
             disabled={!station}
             aria-label="Nächster Sender"
-            className="w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-40"
-            style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+            className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
           >
             <SkipForward size={22} fill="currentColor" />
           </button>

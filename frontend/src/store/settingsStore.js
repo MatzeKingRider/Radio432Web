@@ -40,12 +40,27 @@ function applyButtonMaterial(m) {
   }
 }
 
+const BUTTON_RADIUS_MAP = {
+  square: '0px',
+  slight: '8px',
+  rounded: '16px',
+  pill: '100px',
+}
+
+function applyButtonCornerRadius(value) {
+  const radius = BUTTON_RADIUS_MAP[value] || BUTTON_RADIUS_MAP.rounded
+  document.documentElement.style.setProperty('--radius-button', radius)
+}
+
 const stored = localStorage.getItem(THEME_KEY)
 const initial = THEME_IDS.includes(stored) ? stored : 'A'
 applyTheme(initial)
 
 const initialButtonMaterial = localStorage.getItem('radio432_button_material') || 'theme'
 applyButtonMaterial(initialButtonMaterial)
+
+const initialButtonCornerRadius = localStorage.getItem('radio432_button_corner_radius') || 'rounded'
+applyButtonCornerRadius(initialButtonCornerRadius)
 
 export const useSettingsStore = create((set) => ({
   activeTheme: initial,
@@ -76,6 +91,14 @@ export const useSettingsStore = create((set) => ({
     localStorage.setItem('radio432_button_material', m)
     applyButtonMaterial(m)
     set({ buttonMaterial: m })
+  },
+
+  // Button-Eckenradius (Form der Buttons)
+  buttonCornerRadius: initialButtonCornerRadius,
+  setButtonCornerRadius: (value) => {
+    localStorage.setItem('radio432_button_corner_radius', value)
+    applyButtonCornerRadius(value)
+    set({ buttonCornerRadius: value })
   },
 
   // Frequenz (sync mit Backend)
