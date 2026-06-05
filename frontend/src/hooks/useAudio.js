@@ -30,6 +30,7 @@ export function useAudio() {
   const silenceFramesRef = useRef(0)
   const sourceCreatedRef = useRef(false)
   const silenceIntervalRef = useRef(null)
+  const lastMetaStationRef = useRef(null)
 
   const setPlaying = usePlayerStore((s) => s.setPlaying)
   const setAnalyser = usePlayerStore((s) => s.setAnalyser)
@@ -54,11 +55,18 @@ export function useAudio() {
   }, [volume])
 
   // ICY-Metadaten pollen: nur waehrend Wiedergabe und wenn eine Stream-URL
-  // existiert. Bei Senderwechsel oder Stopp werden die Metadaten zurueckgesetzt
-  // und das Intervall neu aufgesetzt bzw. beendet.
+  // existiert. Die Metadaten werden NUR bei echtem Senderwechsel zurueckgesetzt,
+  // nicht beim Pause/Play-Toggle. Sonst flackert der Titel: Pause -> reset ->
+  // Resume -> leer bis zum naechsten Poll (~15s). Beim Pausieren bleiben die
+  // alten Metadaten also sichtbar.
   useEffect(() => {
-    setNowPlayingMetadata(null, null)
     if (!isPlaying || !stationUrl) return
+
+    // Nur zuruecksetzen, wenn sich die Stream-URL tatsaechlich geaendert hat.
+    if (lastMetaStationRef.current !== stationUrl) {
+      setNowPlayingMetadata(null, null)
+      lastMetaStationRef.current = stationUrl
+    }
 
     let cancelled = false
     async function poll() {
