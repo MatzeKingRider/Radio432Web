@@ -18,7 +18,11 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], runtimeCaching: [] },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 10 MB für große Textures
+      },
     }),
   ],
   server: {

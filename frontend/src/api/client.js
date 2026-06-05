@@ -48,3 +48,9 @@ export const metaApi = {
   get: (url) => apiFetch(`/meta?url=${encodeURIComponent(url)}`),
 }
 
+export const pairApi = {
+  // Pairing-Token + QR-Daten für die Kopplung mit einem Mobilgerät erzeugen.
+  // Antwort: { token, expiresAt, qrData }
+  init: () => apiFetch('/pair/init', { method: 'POST' }),
+}
+

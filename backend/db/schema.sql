@@ -20,3 +20,9 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS pairing_tokens (
+    token       TEXT    PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    expires_at  INTEGER NOT NULL
+);
