@@ -68,7 +68,7 @@ Alle Endpunkte implementiert und getestet:
 
 ---
 
-## Stand Frontend (✅ FERTIG mit Pitch-Shift, Stand 2026-06-04)
+## Stand Frontend (✅ FERTIG mit Pitch-Shift + VU-Meter iOS-Parität, Stand 2026-06-05)
 
 ### Implementiert
 - React 18 + Vite 5 + Tailwind 3 + Zustand 4 + PWA
@@ -76,6 +76,7 @@ Alle Endpunkte implementiert und getestet:
 - Theme-Kacheln im ThemePicker zeigen echte Textur-Vorschau
 - Player (sticky oben): VU-Meter L+R + Spektrum-Analyser, Lautstärke
 - Fullscreen-Player: Artwork, ⏮ Pause/Play ⏭, Mute, Lautstärke, VU+Spektrum, Textur-Hintergrund
+- **VU-Meter iOS-Parität** (2026-06-05): innere 0–100-Skala, Tick-Richtung korrigiert (nach außen), Pivot 4-schichtig mit Highlight
 - 9 VU-Meter-Stile mit Live-Vorschau in Settings + Farbwähler
 - 8 Spektrum-Stile mit Live-Vorschau in Settings + Farbwähler
 - Favoriten-Tab: Backend-Sync, DnD-Sortierung, Offline-Fallback localStorage
@@ -83,7 +84,7 @@ Alle Endpunkte implementiert und getestet:
 - Einstellungen: Theme, Visualizer-Stil, Visualizer-Farbe, Button-Material, Frequenz-Auswahl
 - Web Audio API für echte VU/Spektrum-Analyse, CORS-Fallback auf Simulation
 - PWA-Manifest, iOS-Safari-Meta-Tags, Safe-Area-Insets
-- Responsive: sm-Breakpoint für kompaktere Mobile-Ansicht
+- Responsive: sm-Breakpoint für kompaktere Mobile-Ansicht, VU-Meter responsive via aspectRatio
 
 ### Pitch-Shift-Implementierung (✅ FERTIG — Session 2026-06-04)
 - **Tone.js v14.9.17** integriert für Browser-basiertes Pitch-Shifting
@@ -108,9 +109,9 @@ Alle Endpunkte implementiert und getestet:
 - 🔄 Testen nach Anmeldung — sollte jetzt funktionieren (502 Error war nginx-Config-Fehler)
 
 ## Nächste Schritte
-- [ ] **Verifizieren:** App nach Anmeldung laden, Pitch-Shift testen
-- [ ] Falls 502 bleibt: Backend-API-Logs prüfen (docker compose logs radio432-api)
+- [ ] **Verifizieren:** App nach Anmeldung laden, VU-Meter alle Styles testen (Mobile + Desktop)
 - [ ] Optional: .gitignore für *.db-wal, *.db-shm erweitern
 - [ ] iOS WebSyncService.swift implementieren (Favoriten + Settings sync)
 - [ ] GitHub Repo anlegen: Radio432Web
 - [ ] ICY-Metadaten Proxy im Backend (optionale Erweiterung)
+- [ ] VU-Meter Artwork Fallback Chain (feat/artwork-fallback-chain) für Fehlerfälle
