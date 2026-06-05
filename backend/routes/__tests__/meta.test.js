@@ -1,17 +1,43 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const { Readable } = require('node:stream');
 
 const meta = require('../meta');
 const {
   parseStreamTitle,
   validateStreamUrl,
   fetchICYMetadata,
+  readICYResponse,
   isBlockedIp,
   decodeMeta,
   InvalidUrlError,
   BlockedUrlError,
 } = meta;
+
+// ---------------------------------------------------------------------------
+// Test helpers for the stream-reading path
+// ---------------------------------------------------------------------------
+
+// Builds the raw bytes an ICY server sends: metaInt audio bytes, 1 length byte
+// (in 16-byte units), then the NUL-padded StreamTitle block.
+function buildIcyPayload(streamTitle, metaInt = 16) {
+  const audio = Buffer.alloc(metaInt, 0x41); // 'A' * metaInt
+  const titlePayload = Buffer.from(`StreamTitle='${streamTitle}';`, 'utf8');
+  const padded = Math.ceil(titlePayload.length / 16) * 16;
+  const metaBlock = Buffer.alloc(padded);
+  titlePayload.copy(metaBlock);
+  const lengthByte = Buffer.from([padded / 16]);
+  return Buffer.concat([audio, lengthByte, metaBlock]);
+}
+
+// A readable that also carries `headers` (like http.IncomingMessage) and a
+// no-op destroy(), so readICYResponse can consume it without a socket.
+function mockResponse(headers, chunks) {
+  const readable = Readable.from(chunks);
+  readable.headers = headers;
+  return readable;
+}
 
 // ---------------------------------------------------------------------------
 // parseStreamTitle
@@ -107,9 +133,11 @@ test('isBlockedIp: blocks 172.15 / 172.32 are NOT private', () => {
 // validateStreamUrl
 // ---------------------------------------------------------------------------
 
-test('validateStreamUrl: accepts a public http URL', async () => {
-  const url = await validateStreamUrl('http://1.1.1.1/stream');
+test('validateStreamUrl: accepts a public http URL and pins the validated IP', async () => {
+  const { url, validatedIp } = await validateStreamUrl('http://1.1.1.1/stream');
   assert.equal(url.hostname, '1.1.1.1');
+  // For a literal IP the pinned address must equal the host literal.
+  assert.equal(validatedIp, '1.1.1.1');
 });
 
 test('validateStreamUrl: rejects invalid URL', async () => {
@@ -199,4 +227,79 @@ test('parseStreamTitle: handles the exact bytes a mock server would send', () =>
 
   const r = parseStreamTitle(metaBlock);
   assert.deepEqual(r, { artist: 'Queen', title: 'Bohemian Rhapsody' });
+});
+
+// ---------------------------------------------------------------------------
+// readICYResponse (network-free stream-reading coverage)
+// ---------------------------------------------------------------------------
+
+test('readICYResponse: parses metadata from a chunked ICY stream', async () => {
+  const payload = buildIcyPayload('Daft Punk - Get Lucky', 16);
+  // Split across two chunks to exercise the buffer-concat / wait-for-rest path.
+  const response = mockResponse({ 'icy-metaint': '16' }, [
+    payload.slice(0, 10),
+    payload.slice(10),
+  ]);
+
+  const result = await readICYResponse(response);
+  assert.deepEqual(result, { artist: 'Daft Punk', title: 'Get Lucky' });
+});
+
+test('readICYResponse: resolves null when no icy-metaint header', async () => {
+  const response = mockResponse({}, [Buffer.from('audio-only')]);
+  const result = await readICYResponse(response);
+  assert.deepEqual(result, { artist: null, title: null });
+});
+
+test('readICYResponse: resolves null on empty metadata block (length byte 0)', async () => {
+  const metaInt = 16;
+  const bytes = Buffer.concat([
+    Buffer.alloc(metaInt, 0x41), // audio
+    Buffer.from([0]), // metadata length byte = 0 -> no metadata
+  ]);
+  const response = mockResponse({ 'icy-metaint': String(metaInt) }, [bytes]);
+  const result = await readICYResponse(response);
+  assert.deepEqual(result, { artist: null, title: null });
+});
+
+test('readICYResponse: rejects with UpstreamError on stream error', async () => {
+  const response = new Readable({ read() {} });
+  response.headers = { 'icy-metaint': '16' };
+  const p = readICYResponse(response);
+  response.emit('error', new Error('socket hang up'));
+  await assert.rejects(() => p, meta.UpstreamError);
+});
+
+// ---------------------------------------------------------------------------
+// fetchICYMetadata with injected requestFn (full path incl. IP pinning)
+// ---------------------------------------------------------------------------
+
+test('fetchICYMetadata: reads stream and parses metadata via injected requestFn', async () => {
+  const payload = buildIcyPayload('Queen - Bohemian Rhapsody', 16);
+  let capturedOptions = null;
+
+  const requestFn = (options, callback) => {
+    capturedOptions = options;
+    const response = mockResponse({ 'icy-metaint': '16' }, [payload]);
+    // Deliver the response on the next tick, like a real request would.
+    setImmediate(() => callback(response));
+    return {
+      on() {},
+      setTimeout() {},
+      end() {},
+      destroy() {},
+    };
+  };
+
+  const result = await fetchICYMetadata('http://example.com/stream', requestFn);
+  assert.deepEqual(result, { artist: 'Queen', title: 'Bohemian Rhapsody' });
+
+  // The request must target the validated/pinned IP, not re-resolve the host,
+  // while the original hostname stays in the Host header (TOCTOU defence).
+  assert.ok(capturedOptions, 'requestFn should have been called');
+  assert.notEqual(capturedOptions.host, 'example.com');
+  assert.ok(/^\d+\.\d+\.\d+\.\d+$/.test(capturedOptions.host) || capturedOptions.host.includes(':'),
+    'host should be a literal IP address');
+  assert.equal(capturedOptions.headers.Host, 'example.com');
+  assert.equal(capturedOptions.path, '/stream');
 });

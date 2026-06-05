@@ -95,8 +95,12 @@ function isBlockedIp(ip) {
  *
  * Throws InvalidUrlError or BlockedUrlError on failure.
  *
+ * Returns the parsed URL plus the exact IP that was validated. The caller MUST
+ * connect to `validatedIp` (not re-resolve the hostname) to close the
+ * DNS-rebinding TOCTOU window between validation and the actual request.
+ *
  * @param {string} urlStr
- * @returns {Promise<URL>} the parsed URL when allowed
+ * @returns {Promise<{ url: URL, validatedIp: string, family: number }>}
  */
 async function validateStreamUrl(urlStr) {
   let url;
@@ -127,7 +131,7 @@ async function validateStreamUrl(urlStr) {
         `Blocked: cannot fetch from private range (${hostname})`
       );
     }
-    return url;
+    return { url, validatedIp: hostname, family: net.isIP(hostname) };
   }
 
   // Otherwise resolve DNS and make sure no resolved address is private.
@@ -150,7 +154,87 @@ async function validateStreamUrl(urlStr) {
     }
   }
 
-  return url;
+  // Pin the first validated address so the request connects to exactly the IP
+  // we checked, not whatever a second DNS lookup might return.
+  const { address, family } = addresses[0];
+  return { url, validatedIp: address, family };
+}
+
+/**
+ * Reads an ICY response stream and resolves with the parsed metadata once the
+ * first inline metadata block has been received (or with nulls if there is no
+ * usable metadata). Network-free: it only consumes an IncomingMessage-like
+ * readable that emits 'data'/'end'/'error', so it is unit-testable with a stub.
+ *
+ * @param {import('stream').Readable & { headers: Object }} response
+ * @returns {Promise<{ title: string|null, artist: string|null }>}
+ */
+function readICYResponse(response) {
+  return new Promise((resolve, reject) => {
+    // ICY responses sometimes use a non-standard "ICY 200 OK" status line.
+    // Node still parses statusCode; treat anything outside 2xx as an error
+    // unless metaint is present.
+    const metaInt = parseInt(
+      response.headers['icy-metaint'] ||
+        response.headers['Icy-MetaInt'] ||
+        '0',
+      10
+    );
+
+    if (!metaInt || Number.isNaN(metaInt) || metaInt <= 0) {
+      // No inline metadata advertised by this stream.
+      response.destroy();
+      return resolve({ title: null, artist: null });
+    }
+
+    let received = 0;
+    let buffer = Buffer.alloc(0);
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      response.destroy();
+      resolve(result);
+    };
+
+    response.on('data', (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      received += chunk.length;
+
+      // We need: metaInt bytes of audio, then 1 length byte, then the block.
+      if (buffer.length < metaInt + 1) {
+        if (received > MAX_BYTES) finish({ title: null, artist: null });
+        return;
+      }
+
+      const metaLengthByte = buffer[metaInt];
+      const metaLength = metaLengthByte * 16; // length is given in 16-byte units
+
+      if (metaLength === 0) {
+        // Empty metadata block at this interval; nothing to report yet.
+        finish({ title: null, artist: null });
+        return;
+      }
+
+      if (buffer.length < metaInt + 1 + metaLength) {
+        if (received > MAX_BYTES) finish({ title: null, artist: null });
+        return; // wait for the rest of the block
+      }
+
+      const metaBlock = buffer.slice(metaInt + 1, metaInt + 1 + metaLength);
+
+      finish(parseStreamTitle(metaBlock));
+    });
+
+    response.on('end', () => finish({ title: null, artist: null }));
+    response.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        reject(new UpstreamError(err.message));
+      }
+    });
+  });
 }
 
 /**
@@ -158,91 +242,47 @@ async function validateStreamUrl(urlStr) {
  * and returns the parsed now-playing info.
  *
  * @param {string} streamUrl
+ * @param {Function} [requestFn] optional injected request factory for tests.
+ *   Called as `requestFn(options, callback)` and must return an object with an
+ *   `on`, `setTimeout` and `end` method (i.e. a ClientRequest-like object).
  * @returns {Promise<{ title: string|null, artist: string|null }>}
  */
-async function fetchICYMetadata(streamUrl) {
+async function fetchICYMetadata(streamUrl, requestFn = null) {
   // SSRF guard: validate (and DNS-check) before opening any socket.
-  const parsed = await validateStreamUrl(streamUrl);
+  const { url, validatedIp, family } = await validateStreamUrl(streamUrl);
 
   return new Promise((resolve, reject) => {
-    const client = parsed.protocol === 'https:' ? https : http;
+    const client = url.protocol === 'https:' ? https : http;
 
-    const request = client.request(
-      streamUrl,
-      {
-        method: 'GET',
-        headers: {
-          'Icy-MetaData': '1',
-          'User-Agent': 'Radio432/1.0',
-          Accept: '*/*',
-        },
+    // Connect to the IP we validated, not the hostname, so a second DNS lookup
+    // cannot redirect us to a private address (DNS-rebinding TOCTOU defence).
+    // The original hostname is kept in the Host header (and SNI for TLS) so the
+    // upstream still routes/serves correctly.
+    const defaultPort = url.protocol === 'https:' ? 443 : 80;
+    const options = {
+      host: validatedIp,
+      family,
+      port: url.port || defaultPort,
+      path: url.pathname + url.search,
+      method: 'GET',
+      headers: {
+        Host: url.host,
+        'Icy-MetaData': '1',
+        'User-Agent': 'Radio432/1.0',
+        Accept: '*/*',
       },
-      (response) => {
-        // ICY responses sometimes use a non-standard "ICY 200 OK" status line.
-        // Node still parses statusCode; treat anything outside 2xx as an error
-        // unless metaint is present.
-        const metaInt = parseInt(
-          response.headers['icy-metaint'] ||
-            response.headers['Icy-MetaInt'] ||
-            '0',
-          10
-        );
+    };
 
-        if (!metaInt || Number.isNaN(metaInt) || metaInt <= 0) {
-          // No inline metadata advertised by this stream.
-          response.destroy();
-          return resolve({ title: null, artist: null });
-        }
+    if (url.protocol === 'https:') {
+      // Keep certificate validation working against the real hostname.
+      options.servername = url.hostname;
+    }
 
-        let received = 0;
-        let buffer = Buffer.alloc(0);
-        let settled = false;
+    const issue = requestFn || client.request.bind(client);
 
-        const finish = (result) => {
-          if (settled) return;
-          settled = true;
-          response.destroy();
-          resolve(result);
-        };
-
-        response.on('data', (chunk) => {
-          buffer = Buffer.concat([buffer, chunk]);
-          received += chunk.length;
-
-          // We need: metaInt bytes of audio, then 1 length byte, then the block.
-          if (buffer.length < metaInt + 1) {
-            if (received > MAX_BYTES) finish({ title: null, artist: null });
-            return;
-          }
-
-          const metaLengthByte = buffer[metaInt];
-          const metaLength = metaLengthByte * 16; // length is given in 16-byte units
-
-          if (metaLength === 0) {
-            // Empty metadata block at this interval; nothing to report yet.
-            finish({ title: null, artist: null });
-            return;
-          }
-
-          if (buffer.length < metaInt + 1 + metaLength) {
-            if (received > MAX_BYTES) finish({ title: null, artist: null });
-            return; // wait for the rest of the block
-          }
-
-          const metaBlock = buffer.slice(metaInt + 1, metaInt + 1 + metaLength);
-
-          finish(parseStreamTitle(metaBlock));
-        });
-
-        response.on('end', () => finish({ title: null, artist: null }));
-        response.on('error', (err) => {
-          if (!settled) {
-            settled = true;
-            reject(new UpstreamError(err.message));
-          }
-        });
-      }
-    );
+    const request = issue(options, (response) => {
+      readICYResponse(response).then(resolve, reject);
+    });
 
     request.setTimeout(REQUEST_TIMEOUT_MS, () => {
       request.destroy(new UpstreamError('Stream request timed out'));
@@ -327,6 +367,7 @@ router.get('/', async (req, res) => {
 module.exports = router;
 module.exports.parseStreamTitle = parseStreamTitle;
 module.exports.fetchICYMetadata = fetchICYMetadata;
+module.exports.readICYResponse = readICYResponse;
 module.exports.validateStreamUrl = validateStreamUrl;
 module.exports.isBlockedIp = isBlockedIp;
 module.exports.decodeMeta = decodeMeta;
