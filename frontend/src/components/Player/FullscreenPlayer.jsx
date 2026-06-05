@@ -13,6 +13,8 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
   const station = usePlayerStore((s) => s.currentStation)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
+  const nowPlayingTitle = usePlayerStore((s) => s.nowPlayingTitle)
+  const nowPlayingArtist = usePlayerStore((s) => s.nowPlayingArtist)
   const volume = usePlayerStore((s) => s.volume)
   const setVolume = usePlayerStore((s) => s.setVolume)
   const vuStyle = useSettingsStore((s) => s.vuStyle)
@@ -107,12 +109,22 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
 
         {/* Text */}
         <div className="text-center w-full">
-          <div className="text-[22px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
-            {station?.name || 'Kein Sender gewählt'}
+          {/* Titel (oder Sendername, falls keine Metadaten) */}
+          <div className="text-[22px] font-bold truncate max-w-[90vw]" style={{ color: 'var(--color-text)' }}>
+            {nowPlayingTitle || station?.name || 'Kein Sender gewählt'}
           </div>
-          <div className="text-[15px] truncate mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            {error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : '—'}
+
+          {/* Interpret (oder Status, falls keine Metadaten) */}
+          <div className="text-[15px] truncate mt-1 max-w-[90vw]" style={{ color: 'var(--color-text-secondary)' }}>
+            {nowPlayingTitle && nowPlayingArtist ? nowPlayingArtist : error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : '—'}
           </div>
+
+          {/* Sendername (kleiner, nur wenn Metadaten vorhanden) */}
+          {nowPlayingTitle && (
+            <div className="text-[12px] truncate max-w-[90vw]" style={{ color: 'var(--color-text-secondary)' }}>
+              {station?.name}
+            </div>
+          )}
         </div>
 
         {/* Sender zurück / Play-Pause / Sender vor */}

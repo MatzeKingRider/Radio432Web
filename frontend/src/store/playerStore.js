@@ -12,8 +12,11 @@ export const usePlayerStore = create((set) => ({
   analyserNode: null,
   simulatedMode: false,
   error: null,
+  nowPlayingTitle: null,
+  nowPlayingArtist: null,
 
   setStation: (station) => set({ currentStation: station, error: null }),
+  setNowPlayingMetadata: (title, artist) => set({ nowPlayingTitle: title, nowPlayingArtist: artist }),
   setPlaying: (v) => set({ isPlaying: v }),
   setVolume: (v) => {
     localStorage.setItem(VOLUME_KEY, v)

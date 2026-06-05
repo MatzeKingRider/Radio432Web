@@ -43,3 +43,8 @@ export const settingsApi = {
   setFrequency: (frequency) => apiFetch('/settings', { method: 'PUT', body: JSON.stringify({ frequency }) }),
 }
 
+export const metaApi = {
+  // ICY-Metadaten ({ title, artist }) für eine Stream-URL abrufen.
+  get: (url) => apiFetch(`/meta?url=${encodeURIComponent(url)}`),
+}
+

@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react'
 import * as Tone from 'tone'
 import { usePlayerStore } from '../store/playerStore'
 import { useSettingsStore } from '../store/settingsStore'
+import { metaApi } from '../api/client'
+
+// Intervall fuer das Pollen der ICY-Metadaten (ms).
+const META_POLL_INTERVAL = 15000
 
 // Zentraler Audio-Hook: ein HTML5-Audio-Element + Web Audio API.
 //
@@ -31,7 +35,10 @@ export function useAudio() {
   const setAnalyser = usePlayerStore((s) => s.setAnalyser)
   const setSimulated = usePlayerStore((s) => s.setSimulated)
   const setError = usePlayerStore((s) => s.setError)
+  const setNowPlayingMetadata = usePlayerStore((s) => s.setNowPlayingMetadata)
   const volume = usePlayerStore((s) => s.volume)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
+  const stationUrl = usePlayerStore((s) => s.currentStation?.url)
   const frequency = useSettingsStore((s) => s.frequency)
 
   // Audio-Element einmalig erstellen.
@@ -45,6 +52,32 @@ export function useAudio() {
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
+
+  // ICY-Metadaten pollen: nur waehrend Wiedergabe und wenn eine Stream-URL
+  // existiert. Bei Senderwechsel oder Stopp werden die Metadaten zurueckgesetzt
+  // und das Intervall neu aufgesetzt bzw. beendet.
+  useEffect(() => {
+    setNowPlayingMetadata(null, null)
+    if (!isPlaying || !stationUrl) return
+
+    let cancelled = false
+    async function poll() {
+      try {
+        const data = await metaApi.get(stationUrl)
+        if (!cancelled && data) {
+          setNowPlayingMetadata(data.title ?? null, data.artist ?? null)
+        }
+      } catch (_) {
+        // Bewusst still: vorhandene Metadaten behalten.
+      }
+    }
+    poll()
+    const id = setInterval(poll, META_POLL_INTERVAL)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [isPlaying, stationUrl, setNowPlayingMetadata])
 
   // Frequenz -> Pitch in Halbtoenen umrechnen und auf PitchShift anwenden.
   // 432 Hz = Referenz (0 Halbtoene, keine Verschiebung).

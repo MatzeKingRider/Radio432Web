@@ -8,6 +8,7 @@ export default function NowPlaying({ onToggle, onExpand }) {
   const station = usePlayerStore((s) => s.currentStation)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const error = usePlayerStore((s) => s.error)
+  const nowPlayingTitle = usePlayerStore((s) => s.nowPlayingTitle)
 
   const { src: imgSrc, onError: onImgError } = useArtwork(station)
 
@@ -39,7 +40,7 @@ export default function NowPlaying({ onToggle, onExpand }) {
 
         <div className="flex-1 min-w-0">
           <div className="text-[15px] sm:text-[17px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-            {station?.name || 'Kein Sender gewählt'}
+            {nowPlayingTitle || station?.name || 'Kein Sender gewählt'}
           </div>
           <div className="text-[12px] sm:text-[13px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
             {error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : 'Wähle einen Favoriten oder suche einen Sender'}
