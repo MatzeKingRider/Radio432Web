@@ -16,6 +16,10 @@ app.get('/api/health', (req, res) => {
 // Public routes (no auth — metadata is public from the stream itself)
 app.use('/api/meta', require('./routes/meta'));
 
+// Pairing: /init requires auth, /confirm is public (device has no key yet).
+// Auth is enforced inside the router on the /init route itself.
+app.use('/api/pair', require('./routes/pair'));
+
 // Protected routes with auth middleware
 app.use('/api/favorites', authMiddleware, require('./routes/favorites'));
 app.use('/api/apikey', authMiddleware, require('./routes/apikey'));
