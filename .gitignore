@@ -3,3 +3,6 @@ node_modules/
 frontend/dist/
 backend/node_modules/
 *.db
+*.db-shm
+*.db-wal
+tmp/
