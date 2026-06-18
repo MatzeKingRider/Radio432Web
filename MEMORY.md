@@ -160,3 +160,25 @@ Alle Endpunkte implementiert und getestet:
 - [ ] Optional: .gitignore für *.db-wal, *.db-shm erweitern
 
 **Lektion (siehe auch Deploy-Pfad-Block oben):** Bei Feature-Deploys IMMER Backend mitdenken, nicht nur dist. Und Endpunkte am Live-System verifizieren (intern via `docker exec`, umgeht Cloudflare), nicht nur lokal.
+
+---
+
+## Session-Stand 2026-06-11 (Session-Ende) — Infra/Stabilität
+
+**Woran gearbeitet:** Stabilitätsprüfung + Wiederherstellung der Live-Erreichbarkeit (UI meldete „Backend nicht erreichbar").
+
+**Diagnose:**
+- Lokaler Dev-Stack war stabil (Backend 3001 `{"status":"ok"}`, Build aktuell, Frontend lädt 0 Console-Errors) — der Fehler kam vom **produktiven Linux-Stack**, nicht lokal.
+- **Root-Cause:** Cloudflare-Tunnel hatte am 2026-06-09 ~16:02 UTC QUIC-Abbrüche („no recent network activity") → seitdem erreichten keine Requests mehr das Backend.
+- cloudflared war veraltet (2026.2.0).
+
+**Erledigt ✅ (alles auf `ssh linux`, Stack `~/docker/radio432`):**
+- Sauberer Komplett-Neustart (`docker compose down && up`) → Tunnel neu registriert (4 Verbindungen, fra03/06/08/20).
+- Cloudflare-Cache geleert (Zone `claudimatze.online`, `purge_everything` → success).
+- cloudflared aktualisiert auf **2026.6.0** (`docker compose pull radio432-tunnel` + recreate; api/nginx liefen durch).
+- Obsolete `version:`-Zeile aus der **Server**-`docker-compose.yml` entfernt (Backup als `docker-compose.yml.bak` daneben).
+- Verifiziert: intern `/api/health` = ok, extern `radio.claudimatze.online` → 302 CF-Access-Login, `/api/pair/confirm` → 400 (Backend durch Tunnel erreichbar, kein 502/Timeout).
+
+**Hinweis:** Diese Arbeit fand auf dem Server statt (nicht im Repo). Die Server-`docker-compose.yml` weicht jetzt minimal von der Repo-Version ab (fehlende `version:`-Zeile — kosmetisch). Bei künftigem Tunnel-Flackern zuerst cloudflared-Version + Tunnel-Logs prüfen.
+
+**Offen / Nächste Schritte:** unverändert wie 2026-06-05 (iOS-Sync durch CF Access, WebSyncService, .gitignore für *.db-*). Zusätzlich: WIP `feat/artwork-fallback-chain` noch nicht committet/gepusht.
