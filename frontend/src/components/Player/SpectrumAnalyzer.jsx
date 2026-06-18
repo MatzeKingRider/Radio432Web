@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../../store/playerStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { createSimulator, readSpectrum } from '../../hooks/useVisualizer'
 
 // Classic-LED Spektrum-Analyser auf Canvas — portiert aus iOS
@@ -39,6 +40,9 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const analyserNode = usePlayerStore((s) => s.analyserNode)
   const simulatedMode = usePlayerStore((s) => s.simulatedMode)
+  const peakEnabled = useSettingsStore((s) => s.peakEnabled)
+  const peakColorSetting = useSettingsStore((s) => s.peakColor)
+  const peakHoldMs = useSettingsStore((s) => s.peakHoldMs)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -81,10 +85,14 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
         if (t[i] > values[i]) values[i] += (t[i] - values[i]) * 0.6
         else values[i] += (t[i] - values[i]) * 0.25
 
+        if (!peakEnabled) {
+          peaks[i] = 0
+          continue
+        }
         if (values[i] >= peaks[i]) {
           peaks[i] = values[i]
           peakTimes[i] = now
-        } else if (now - peakTimes[i] > 500) {
+        } else if (now - peakTimes[i] > peakHoldMs) {
           peaks[i] = Math.max(values[i], peaks[i] - 0.06)
         }
       }
@@ -103,14 +111,11 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
       } else if (style === 'waveformPeaks') {
         drawWaveform(ctx, w, h, values, accent)
       } else {
-        drawSegmentBars(ctx, w, h, values, peaks, style, accent)
+        drawSegmentBars(ctx, w, h, values, peaks, style, accent, peakColorSetting)
       }
 
-      // Akzent-Rahmen
-      roundRect(ctx, 0.9, 0.9, w - 1.8, h - 1.8, 9)
-      ctx.strokeStyle = accent
-      ctx.lineWidth = 1.8
-      ctx.stroke()
+      // Hinweis: KEIN interner Canvas-Rahmen mehr — der sichtbare Rahmen kommt
+      // ausschließlich von der CSS-Klasse .panel-frame (einheitliche --frame-width).
 
       const active = isPlaying || values.some((v) => v > 0.001) || peaks.some((p) => p > 0.001)
       if (active) rafRef.current = requestAnimationFrame(draw)
@@ -131,7 +136,7 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
       window.removeEventListener('resize', resize)
       window.removeEventListener('resize', redrawStatic)
     }
-  }, [isPlaying, analyserNode, simulatedMode, style, customColor])
+  }, [isPlaying, analyserNode, simulatedMode, style, customColor, peakEnabled, peakColorSetting, peakHoldMs])
 
   return <canvas ref={canvasRef} className="w-full h-full block" />
 }
@@ -155,7 +160,8 @@ function amberColor(ratio) {
 }
 
 // 22 LED-Balken (classic, neonGlow, broadcast, ledAmber).
-function drawSegmentBars(ctx, w, h, values, peaks, style, accent) {
+function drawSegmentBars(ctx, w, h, values, peaks, style, accent, peakOverride = '') {
+  const hasPeakOverride = !!(peakOverride && peakOverride !== '')
   const neon = style === 'neonGlow'
   const broadcast = style === 'broadcast'
   const amber = style === 'ledAmber'
@@ -188,19 +194,21 @@ function drawSegmentBars(ctx, w, h, values, peaks, style, accent) {
       ctx.beginPath()
       roundRect(ctx, x, y, barW, segH, 1)
       if (neon) {
-        if (isPeak || lit) ctx.fillStyle = accent
+        if (isPeak) ctx.fillStyle = hasPeakOverride ? peakOverride : accent
+        else if (lit) ctx.fillStyle = accent
         else ctx.fillStyle = '#1C1C1C'
       } else if (broadcast) {
         // Top-Segmente rot, Rest weiß (Studio-Monitor)
-        if (isPeak) ctx.fillStyle = '#FF4030'
+        if (isPeak) ctx.fillStyle = hasPeakOverride ? peakOverride : '#FF4030'
         else if (lit) ctx.fillStyle = ratio >= 0.85 ? '#FF4030' : '#E8E8E8'
         else ctx.fillStyle = '#1C1C1C'
       } else if (amber) {
         // Amber/Orange Phosphor-Look
-        if (isPeak || lit) ctx.fillStyle = amberColor(ratio)
+        if (isPeak) ctx.fillStyle = hasPeakOverride ? peakOverride : amberColor(ratio)
+        else if (lit) ctx.fillStyle = amberColor(ratio)
         else ctx.fillStyle = '#241A06'
       } else {
-        if (isPeak) ctx.fillStyle = peakColor(ratio)
+        if (isPeak) ctx.fillStyle = hasPeakOverride ? peakOverride : peakColor(ratio)
         else if (lit) ctx.fillStyle = segColor(ratio)
         else ctx.fillStyle = '#1C1C1C'
       }
@@ -347,7 +355,10 @@ function withAlpha(color, alpha) {
 }
 
 function roundRect(ctx, x, y, w, h, r) {
-  const rr = Math.min(r, w / 2, h / 2)
+  // Bei extrem kleinen/negativen Flächen (sehr niedriger Viewport) nichts zeichnen,
+  // sonst wirft arcTo IndexSizeError (negativer Radius).
+  if (w <= 0 || h <= 0) { ctx.beginPath(); return }
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
   ctx.beginPath()
   ctx.moveTo(x + rr, y)
   ctx.arcTo(x + w, y, x + w, y + h, rr)

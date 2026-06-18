@@ -73,6 +73,7 @@ export default function App() {
         open={showFullscreen}
         onClose={() => setShowFullscreen(false)}
         onToggle={handleToggle}
+        onStop={stop}
         onPrev={handlePrev}
         onNext={handleNext}
       />

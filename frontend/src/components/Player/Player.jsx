@@ -18,14 +18,16 @@ export default function Player({ onToggle, onExpand }) {
     >
       <NowPlaying onToggle={onToggle} onExpand={onExpand} />
 
-      {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
+      {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite.
+          VU-Höhe dynamisch begrenzt (clamp), damit der Header die Listen/Tabs
+          darunter nicht verdeckt. */}
       <div className="flex flex-col gap-2 px-4 pt-3 w-full">
-        {/* VU-Meter-Reihe: beide gleich breit */}
-        <div className="flex gap-2">
-          <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+        {/* VU-Meter-Reihe: beide gleich breit, Höhe gedeckelt */}
+        <div className="flex gap-2 justify-center" style={{ height: 'clamp(56px, 12vw, 96px)' }}>
+          <div className="flex-1 max-w-[180px]">
             <VUMeter label="L" style={vuStyle} customColor={vuColor} />
           </div>
-          <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
+          <div className="flex-1 max-w-[180px]">
             <VUMeter label="R" style={vuStyle} customColor={vuColor} />
           </div>
         </div>

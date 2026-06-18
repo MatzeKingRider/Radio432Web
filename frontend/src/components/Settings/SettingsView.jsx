@@ -5,6 +5,7 @@ import { pairApi } from '../../api/client'
 import ThemePicker from './ThemePicker'
 import VUMeterPreview from './VUMeterPreview'
 import SpectrumPreview from './SpectrumPreview'
+import DisplayStylePicker from './DisplayStylePicker'
 import QRCode from '../common/QRCode'
 
 const VU_STYLES = [
@@ -37,13 +38,6 @@ const BUTTON_MATERIALS = [
   ['bronze', 'Bronze', '#B89160', '#6E5430'],
   ['copper', 'Copper', '#D89466', '#8A4A28'],
   ['standard', 'Standard', 'var(--color-accent)', 'color-mix(in srgb, var(--color-accent) 60%, black)'],
-]
-
-const BUTTON_CORNER_RADII = [
-  ['square', 'Eckig'],
-  ['slight', 'Leicht gerundet'],
-  ['rounded', 'Stark gerundet'],
-  ['pill', 'Oval'],
 ]
 
 const FREQUENCIES = [396, 417, 432, 440, 444, 528, 639, 741, 852, 963]
@@ -99,14 +93,20 @@ export default function SettingsView() {
   const setVuStyle = useSettingsStore((s) => s.setVuStyle)
   const spectrumStyle = useSettingsStore((s) => s.spectrumStyle)
   const setSpectrumStyle = useSettingsStore((s) => s.setSpectrumStyle)
-  const vuColor = useSettingsStore((s) => s.vuColor)
-  const setVuColor = useSettingsStore((s) => s.setVuColor)
-  const spectrumColor = useSettingsStore((s) => s.spectrumColor)
-  const setSpectrumColor = useSettingsStore((s) => s.setSpectrumColor)
+  const accentOverride = useSettingsStore((s) => s.accentOverride)
+  const setAccentOverride = useSettingsStore((s) => s.setAccentOverride)
   const buttonMaterial = useSettingsStore((s) => s.buttonMaterial)
   const setButtonMaterial = useSettingsStore((s) => s.setButtonMaterial)
-  const buttonCornerRadius = useSettingsStore((s) => s.buttonCornerRadius)
-  const setButtonCornerRadius = useSettingsStore((s) => s.setButtonCornerRadius)
+  const cornerRadius = useSettingsStore((s) => s.cornerRadius)
+  const setCornerRadius = useSettingsStore((s) => s.setCornerRadius)
+  const panelFrameEnabled = useSettingsStore((s) => s.panelFrameEnabled)
+  const setPanelFrameEnabled = useSettingsStore((s) => s.setPanelFrameEnabled)
+  const peakEnabled = useSettingsStore((s) => s.peakEnabled)
+  const setPeakEnabled = useSettingsStore((s) => s.setPeakEnabled)
+  const peakColor = useSettingsStore((s) => s.peakColor)
+  const setPeakColor = useSettingsStore((s) => s.setPeakColor)
+  const peakHoldMs = useSettingsStore((s) => s.peakHoldMs)
+  const setPeakHoldMs = useSettingsStore((s) => s.setPeakHoldMs)
   const frequency = useSettingsStore((s) => s.frequency)
   const setFrequency = useSettingsStore((s) => s.setFrequency)
 
@@ -136,63 +136,101 @@ export default function SettingsView() {
       <SectionTitle>Design</SectionTitle>
       <ThemePicker />
 
+      <SectionTitle>Display</SectionTitle>
+      <div className="px-4 pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Display-Stil</div>
+      <DisplayStylePicker />
+
       <SectionTitle>Visualizer</SectionTitle>
       <div className="px-4 pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>VU-Meter Stil</div>
-      <StyleScroller options={VU_STYLES} value={vuStyle} onChange={setVuStyle} PreviewComponent={VUMeterPreview} previewColor={vuColor} />
+      <StyleScroller options={VU_STYLES} value={vuStyle} onChange={setVuStyle} PreviewComponent={VUMeterPreview} />
       <div className="px-4 pt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Spektrum-Analyser Stil</div>
-      <StyleScroller options={SPECTRUM_STYLES} value={spectrumStyle} onChange={setSpectrumStyle} PreviewComponent={SpectrumPreview} previewColor={spectrumColor} />
+      <StyleScroller options={SPECTRUM_STYLES} value={spectrumStyle} onChange={setSpectrumStyle} PreviewComponent={SpectrumPreview} />
 
-      <SectionTitle>Visualizer-Farbe</SectionTitle>
+      <SectionTitle>Spektrum Peak-Hold</SectionTitle>
       <div className="px-4 py-2 flex flex-col gap-3">
-        {/* VU-Meter Farbe */}
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>VU-Meter</span>
+          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Peak-Anzeige</span>
+          <button
+            onClick={() => setPeakEnabled(!peakEnabled)}
+            role="switch"
+            aria-checked={peakEnabled}
+            className="px-3 py-1.5 rounded-full text-[12px] font-medium"
+            style={{
+              background: peakEnabled ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: peakEnabled ? 'var(--btn-fg)' : 'var(--color-text)',
+              border: '1px solid var(--color-separator)',
+            }}
+          >
+            {peakEnabled ? 'An' : 'Aus'}
+          </button>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Peak-Farbe</span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setVuColor('')}
+              onClick={() => setPeakColor('')}
               className="px-3 py-1.5 rounded-full text-[12px] font-medium"
               style={{
-                background: !vuColor ? 'var(--color-accent)' : 'var(--color-surface)',
-                color: !vuColor ? 'var(--btn-fg)' : 'var(--color-text)',
+                background: !peakColor ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: !peakColor ? 'var(--btn-fg)' : 'var(--color-text)',
                 border: '1px solid var(--color-separator)',
               }}
             >
-              Theme
+              Auto
             </button>
             <input
               type="color"
-              value={vuColor || '#C9A84C'}
-              onChange={(e) => setVuColor(e.target.value)}
+              value={peakColor || '#FFFFFF'}
+              onChange={(e) => setPeakColor(e.target.value)}
               className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0"
               style={{ background: 'none' }}
-              title="VU-Meter Farbe wählen"
+              title="Peak-Farbe wählen"
             />
           </div>
         </div>
-        {/* Spektrum-Analyser Farbe */}
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Spektrum</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSpectrumColor('')}
-              className="px-3 py-1.5 rounded-full text-[12px] font-medium"
-              style={{
-                background: !spectrumColor ? 'var(--color-accent)' : 'var(--color-surface)',
-                color: !spectrumColor ? 'var(--btn-fg)' : 'var(--color-text)',
-                border: '1px solid var(--color-separator)',
-              }}
-            >
-              Theme
-            </button>
+          <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Haltezeit</span>
+          <div className="flex items-center gap-3 flex-1 max-w-[60%]">
             <input
-              type="color"
-              value={spectrumColor || '#1ED12E'}
-              onChange={(e) => setSpectrumColor(e.target.value)}
-              className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0"
-              style={{ background: 'none' }}
-              title="Spektrum Farbe wählen"
+              type="range"
+              min={100}
+              max={2000}
+              step={50}
+              value={peakHoldMs}
+              onChange={(e) => setPeakHoldMs(parseInt(e.target.value, 10))}
+              className="flex-1"
+              style={{ accentColor: 'var(--color-accent)' }}
             />
+            <span className="text-[13px] tabular-nums w-[64px] text-right" style={{ color: 'var(--color-text)' }}>
+              {peakHoldMs} ms
+            </span>
           </div>
+        </div>
+      </div>
+
+      <SectionTitle>Akzentfarbe</SectionTitle>
+      <div className="px-4 py-2 flex items-center justify-between gap-3">
+        <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Farbe für Visualizer, Rahmen & Display</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAccentOverride('')}
+            className="px-3 py-1.5 rounded-full text-[12px] font-medium"
+            style={{
+              background: !accentOverride ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: !accentOverride ? 'var(--btn-fg)' : 'var(--color-text)',
+              border: '1px solid var(--color-separator)',
+            }}
+          >
+            Theme-Standard
+          </button>
+          <input
+            type="color"
+            value={accentOverride || '#C9A84C'}
+            onChange={(e) => setAccentOverride(e.target.value)}
+            className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0"
+            style={{ background: 'none' }}
+            title="Akzentfarbe wählen"
+          />
         </div>
       </div>
 
@@ -218,25 +256,48 @@ export default function SettingsView() {
         })}
       </div>
 
-      <SectionTitle>Button-Form</SectionTitle>
-      <div className="flex gap-2 px-4 py-2 overflow-x-auto scroll-area">
-        {BUTTON_CORNER_RADII.map(([id, name]) => {
-          const isActive = buttonCornerRadius === id
-          return (
-            <button
-              key={id}
-              onClick={() => setButtonCornerRadius(id)}
-              className="shrink-0 px-4 py-2 rounded-full text-[13px] font-medium transition-colors"
-              style={{
-                background: isActive ? 'var(--color-accent)' : 'var(--color-surface)',
-                color: isActive ? 'var(--btn-fg)' : 'var(--color-text)',
-                border: isActive ? '2px solid var(--color-accent)' : '1px solid var(--color-separator)',
-              }}
-            >
-              {name}
-            </button>
-          )
-        })}
+      <SectionTitle>Eckenradius</SectionTitle>
+      <div className="px-4 py-3 flex items-center gap-4">
+        <input
+          type="range"
+          min={0}
+          max={60}
+          step={1}
+          value={cornerRadius}
+          onChange={(e) => setCornerRadius(parseInt(e.target.value, 10))}
+          className="flex-1"
+          style={{ accentColor: 'var(--color-accent)' }}
+          aria-label="Eckenradius"
+        />
+        <span className="text-[13px] tabular-nums w-[52px] text-right" style={{ color: 'var(--color-text)' }}>
+          {cornerRadius} px
+        </span>
+        <div
+          className="w-10 h-10 shrink-0"
+          style={{
+            background: 'linear-gradient(180deg, var(--btn-top), var(--btn-bottom))',
+            border: '1px solid var(--btn-border)',
+            borderRadius: 'var(--radius-global)',
+          }}
+        />
+      </div>
+
+      <SectionTitle>Bedienpanel</SectionTitle>
+      <div className="px-4 py-2 flex items-center justify-between gap-3">
+        <span className="text-[14px]" style={{ color: 'var(--color-text)' }}>Rahmen um die Bedienelemente</span>
+        <button
+          onClick={() => setPanelFrameEnabled(!panelFrameEnabled)}
+          role="switch"
+          aria-checked={panelFrameEnabled}
+          className="px-3 py-1.5 rounded-full text-[12px] font-medium"
+          style={{
+            background: panelFrameEnabled ? 'var(--color-accent)' : 'var(--color-surface)',
+            color: panelFrameEnabled ? 'var(--btn-fg)' : 'var(--color-text)',
+            border: '1px solid var(--color-separator)',
+          }}
+        >
+          {panelFrameEnabled ? 'An' : 'Aus'}
+        </button>
       </div>
 
       <SectionTitle>Pitch-Shift Frequenz</SectionTitle>

@@ -33,6 +33,7 @@ export function useAudio() {
   const lastMetaStationRef = useRef(null)
 
   const setPlaying = usePlayerStore((s) => s.setPlaying)
+  const setBuffering = usePlayerStore((s) => s.setBuffering)
   const setAnalyser = usePlayerStore((s) => s.setAnalyser)
   const setSimulated = usePlayerStore((s) => s.setSimulated)
   const setError = usePlayerStore((s) => s.setError)
@@ -53,6 +54,28 @@ export function useAudio() {
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
+
+  // Buffer-/Lade-Status aus dem Audio-Element ableiten. waiting/stalled = lädt,
+  // playing/canplay/canplaythrough = genug Daten. So zeigt das Display einen
+  // dezenten "BUFFERING…"-Hinweis, ohne neue Audio-Logik.
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a) return
+    const onWaiting = () => setBuffering(true)
+    const onReady = () => setBuffering(false)
+    a.addEventListener('waiting', onWaiting)
+    a.addEventListener('stalled', onWaiting)
+    a.addEventListener('playing', onReady)
+    a.addEventListener('canplay', onReady)
+    a.addEventListener('canplaythrough', onReady)
+    return () => {
+      a.removeEventListener('waiting', onWaiting)
+      a.removeEventListener('stalled', onWaiting)
+      a.removeEventListener('playing', onReady)
+      a.removeEventListener('canplay', onReady)
+      a.removeEventListener('canplaythrough', onReady)
+    }
+  }, [setBuffering])
 
   // ICY-Metadaten pollen: nur waehrend Wiedergabe und wenn eine Stream-URL
   // existiert. Die Metadaten werden NUR bei echtem Senderwechsel zurueckgesetzt,
@@ -228,6 +251,7 @@ export function useAudio() {
     a.removeAttribute('src')
     a.load()
     setPlaying(false)
+    setBuffering(false)
     // Simulationsmodus zuruecksetzen, damit der naechste (ggf. CORS-freie)
     // Sender nicht faelschlich im Simulationsmodus startet.
     setSimulated(false)

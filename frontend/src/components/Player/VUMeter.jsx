@@ -95,11 +95,8 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
         drawArcStyle(ctx, w, h, levelRef.current, label, style, accent)
       }
 
-      // Akzent-Rahmen
-      roundRect(ctx, 0.9, 0.9, w - 1.8, h - 1.8, 9)
-      ctx.lineWidth = 1.8
-      ctx.strokeStyle = accent
-      ctx.stroke()
+      // Hinweis: KEIN interner Canvas-Rahmen mehr — der sichtbare Rahmen kommt
+      // ausschließlich von der CSS-Klasse .panel-frame (einheitliche --frame-width).
 
       if (isPlaying || levelRef.current > 0.001 || peakRef.current > 0.001) {
         rafRef.current = requestAnimationFrame(draw)
@@ -130,7 +127,6 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
     <canvas
       ref={canvasRef}
       className="w-full h-full block"
-      style={{ aspectRatio: '4 / 3' }}
     />
   )
 }
@@ -174,8 +170,14 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
   }
 
   const cx = w / 2
-  const R = Math.min(w * 0.48, h * 0.86) * 0.84
-  const cy = h * 0.5 + R * 0.5
+  // Vertikale Zentrierung: Die sichtbare Höhe des Messwerks reicht von der
+  // Skalen-Oberkante (inkl. äußerer dB-Labels bei ~R*1.25 über dem Drehpunkt)
+  // bis zum Nadel-Drehpunkt (cy). Diese Spanne (1.25*R) soll mittig in der Box
+  // sitzen → Oberkante bei padV, Drehpunkt nahe Unterkante.
+  const padV = 4
+  // Untergrenze 1, damit bei extrem kleiner Höhe kein negativer Radius (Canvas-Fehler) entsteht.
+  const R = Math.max(1, Math.min(w * 0.48 * 0.84, (h - 2 * padV) / 1.25))
+  const cy = h / 2 + R * 0.625
 
   ctx.save()
   if (neon) {
@@ -233,13 +235,14 @@ function drawArcStyle(ctx, w, h, level, label, style, accent) {
 
   ctx.restore()
 
-  // Studio: digitale dB-Anzeige rechts unten.
+  // Studio: digitale dB-Anzeige unten zentriert (horizontal mittig wie der Bogen).
   if (studio) {
     ctx.fillStyle = accent
     ctx.font = `${Math.max(6, R * 0.12)}px ui-monospace, monospace`
-    ctx.textAlign = 'right'
+    ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
-    ctx.fillText(`${Math.max(-60, dbVal).toFixed(1)} dB`, w - 5, h - 4)
+    // knapp über dem Drehpunkt (unter dem Drehpunkt ist kein Platz mehr)
+    ctx.fillText(`${Math.max(-60, dbVal).toFixed(1)} dB`, cx, cy - R * 0.06)
   }
 
   // Kanal-Label

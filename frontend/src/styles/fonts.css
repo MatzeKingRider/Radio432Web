@@ -1,0 +1,76 @@
+/* ==========================================================================
+   Radio432 — Self-hosted Display-Schriften (offline-fest, kein CDN)
+   --------------------------------------------------------------------------
+   TTF-Dateien liegen unter Radio432Web/public/fonts/ und werden hier per
+   @font-face eingebunden. Dieselben TTFs sind fuer das spaetere iOS/tvOS-
+   Bundling wiederverwendbar (siehe public/fonts/README.md).
+   Alle Schriften stehen unter der SIL Open Font License (OFL).
+   ========================================================================== */
+
+/* --- VT323 (Pixel/Plasma/Terminal: dot, term) --- */
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/VT323-Regular.ttf') format('truetype');
+}
+
+/* --- Share Tech Mono (VFD, LCD, Tuner, Cassette) --- */
+@font-face {
+  font-family: 'Share Tech Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype');
+}
+
+/* --- Orbitron (Nixie) — Variable Font, deckt 400-900 ab --- */
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/Orbitron-VariableFont_wght.ttf') format('truetype');
+}
+
+/* --- Inter (OLED, Chrome) — Variable Font, deckt 100-900 ab --- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Inter-VariableFont.ttf') format('truetype');
+}
+
+/* --- DSEG7 Classic (echtes 7-Segment, z.B. Nixie/Bernstein-Ziffern) --- */
+@font-face {
+  font-family: 'DSEG7 Classic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/DSEG7Classic-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'DSEG7 Classic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/DSEG7Classic-Bold.ttf') format('truetype');
+}
+
+/* --- DSEG14 Classic (14-Segment alphanumerisch, Bernstein-Stil) --- */
+@font-face {
+  font-family: 'DSEG14 Classic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/DSEG14Classic-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'DSEG14 Classic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/DSEG14Classic-Bold.ttf') format('truetype');
+}

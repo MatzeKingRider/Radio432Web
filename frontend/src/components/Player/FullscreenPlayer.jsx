@@ -1,31 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
-import { Radio, Play, Pause, X, Volume1, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-react' // Volume1 für VolIcon bei niedrigem Pegel
+import { X } from 'lucide-react'
 import { usePlayerStore } from '../../store/playerStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import ThemedBackground from '../common/ThemedBackground'
 import VUMeter from './VUMeter'
 import SpectrumAnalyzer from './SpectrumAnalyzer'
+import Display from './Display'
+import ControlPanel from './ControlPanel'
 import { useArtwork } from '../../hooks/useArtwork'
 
 // Vollbild-Player, responsiv: Mobile stapelt vertikal (Portrait, angelehnt an iOS
-// NowPlayingScreen), ab md:768px Side-by-Side (Artwork links, Controls rechts).
-// Slide-up-Animation beim Öffnen, Schließen via X-Button oder Swipe-Down.
-export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNext }) {
+// NowPlayingScreen), ab md:768px Side-by-Side (Artwork links, rechte Spalte mit
+// Display, VU, Spectrum, Bedienpanel). Slide-up beim Öffnen, Schließen via
+// X-Button oder Swipe-Down. Kein Scrollen: Flex + min-h-0 + clamp-Höhen.
+export default function FullscreenPlayer({ open, onClose, onToggle, onStop, onPrev, onNext }) {
   const station = usePlayerStore((s) => s.currentStation)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const error = usePlayerStore((s) => s.error)
   const nowPlayingTitle = usePlayerStore((s) => s.nowPlayingTitle)
   const nowPlayingArtist = usePlayerStore((s) => s.nowPlayingArtist)
-  const volume = usePlayerStore((s) => s.volume)
-  const setVolume = usePlayerStore((s) => s.setVolume)
   const vuStyle = useSettingsStore((s) => s.vuStyle)
   const spectrumStyle = useSettingsStore((s) => s.spectrumStyle)
   const vuColor = useSettingsStore((s) => s.vuColor)
   const spectrumColor = useSettingsStore((s) => s.spectrumColor)
+  const displayStyle = useSettingsStore((s) => s.displayStyle)
+  const frequency = useSettingsStore((s) => s.frequency)
 
   const [shown, setShown] = useState(false)
   const [dragY, setDragY] = useState(0)
   const startYRef = useRef(null)
+
+  // Gemessene Höhe der rechten Spalte (Display+VU+Spektrum+Bedienpanel) und
+  // ob das zweispaltige md:-Layout aktiv ist. Damit wird das Cover links
+  // genau so hoch wie der rechte Block (analog Apple-TV RightColHeightKey).
+  const rightColRef = useRef(null)
+  const [rightColHeight, setRightColHeight] = useState(0)
+  const [isTwoCol, setIsTwoCol] = useState(false)
 
   const { src: imgSrc, onError: onImgError } = useArtwork(station, nowPlayingArtist, nowPlayingTitle)
 
@@ -39,11 +48,32 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
     setDragY(0)
   }, [open])
 
-  if (!open) return null
+  // md:-Breakpoint (768px) beobachten — nur dort koppeln wir das Cover an die
+  // rechte Spaltenhöhe; im Mobile-Layout bleibt das Cover wie bisher.
+  useEffect(() => {
+    if (!open) return
+    const mq = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsTwoCol(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [open])
 
-  const VolIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
-  const muted = volume === 0
-  function toggleMute() { setVolume(muted ? 0.8 : 0) }
+  // Höhe der rechten Spalte messen und bei Größenänderung aktualisieren.
+  useEffect(() => {
+    if (!open) return
+    const el = rightColRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect?.height ?? el.getBoundingClientRect().height
+      setRightColHeight(h)
+    })
+    ro.observe(el)
+    setRightColHeight(el.getBoundingClientRect().height)
+    return () => ro.disconnect()
+  }, [open, shown])
+
+  if (!open) return null
 
   function onTouchStart(e) { startYRef.current = e.touches[0].clientY }
   function onTouchMove(e) {
@@ -59,9 +89,14 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
 
   const translate = shown ? dragY : window.innerHeight
 
+  // Live-Daten fürs Display (nur vorhandene Felder — keine neuen Infos).
+  const dispStation = station?.name || ''
+  const dispTitle = nowPlayingTitle || station?.name || 'Kein Sender'
+  const dispArtist = nowPlayingArtist || ''
+
   return (
     <div
-      className="fixed inset-0 flex flex-col safe-top safe-bottom"
+      className="fixed inset-0 flex flex-col safe-top safe-bottom overflow-hidden"
       style={{
         zIndex: 50,
         transform: `translateY(${translate}px)`,
@@ -78,134 +113,108 @@ export default function FullscreenPlayer({ open, onClose, onToggle, onPrev, onNe
       <ThemedBackground />
 
       {/* Schließen */}
-      <div className="flex items-center justify-end px-4 pt-3">
+      <div className="flex items-center justify-end px-4 pt-2 shrink-0">
         <button
           onClick={onClose}
           aria-label="Schließen"
-          className="w-10 h-10 flex items-center justify-center rounded-full"
-          style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
+          className="btn-material w-10 h-10 flex items-center justify-center rounded-full"
         >
           <X size={22} />
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-center md:gap-8 px-6 md:px-8 py-6 min-h-0 overflow-y-auto">
-        {/* Links: Artwork */}
-        <div className="flex flex-col items-center shrink-0 mb-6 md:mb-0">
+      {/* Zwei gleich breite, logische Spalten.
+          Mobile (Portrait): vertikal gestapelt, Cover oben — unverändert.
+          Ab md: zwei Spalten gleicher Höhe (items-stretch). Die rechte Spalte
+          bestimmt durch ihren Inhalt die Reihenhöhe; das Cover links wird ein
+          Quadrat mit height:100% der Reihe → genau so hoch wie der rechte Block
+          (analog Apple-TV NowPlayingTVView). */}
+      <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-center px-4 md:px-8 pb-3 min-h-0 gap-3 md:gap-8">
+        {/* Linke Spalte: Cover. Mobile zentriert im eigenen Halbbereich; ab md
+            wird das quadratische Cover an die gemessene rechte Spaltenhöhe
+            gekoppelt (analog Apple-TV), begrenzt durch die linke Halbbreite. */}
+        <div className="flex items-center justify-center md:justify-end min-h-0 flex-1 basis-[120px] md:basis-0">
           <div
-            className="aspect-square w-[75vw] max-w-[380px] md:w-auto md:h-[min(70vh,600px)] rounded-3xl overflow-hidden flex items-center justify-center"
-            style={{ background: 'transparent' }}
+            className="overflow-hidden flex items-center justify-center panel-frame"
+            style={{
+              aspectRatio: '1 / 1',
+              // Mobile: Cover füllt den oberen Halbbereich (height 100%).
+              // Zweispaltig: feste Kantenlänge = gemessene rechte Spaltenhöhe.
+              height: isTwoCol && rightColHeight > 0 ? `${rightColHeight}px` : '100%',
+              width: 'auto',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              background: 'transparent',
+              borderRadius: 'min(var(--radius-global, 10px), 24px)',
+            }}
           >
-            {imgSrc ? (
-              <img
-                src={imgSrc}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-contain"
-                onError={onImgError}
-              />
-            ) : (
-              <Radio size={120} style={{ color: 'var(--color-accent)' }} />
-            )}
+            <img
+              src={imgSrc || '/fallback-artwork.png'}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain"
+              onError={onImgError}
+            />
           </div>
         </div>
 
-        {/* Rechts: Info + Controls */}
-        <div className="flex-1 flex flex-col items-center md:items-stretch gap-6 w-full md:min-w-0 md:max-w-[560px]">
-          {/* Text */}
-          <div className="text-center md:text-left w-full">
-            {/* Titel (oder Sendername, falls keine Metadaten) */}
-            <div className="text-[22px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
-              {nowPlayingTitle || station?.name || 'Kein Sender gewählt'}
-            </div>
-
-            {/* Interpret (oder Status, falls keine Metadaten) */}
-            <div className="text-[15px] truncate mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              {nowPlayingTitle && nowPlayingArtist ? nowPlayingArtist : error ? error : isPlaying ? 'Wiedergabe läuft' : station ? 'Bereit' : '—'}
-            </div>
-
-            {/* Sendername (kleiner, nur wenn Metadaten vorhanden) */}
-            {nowPlayingTitle && (
-              <div className="text-[12px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
-                {station?.name}
-              </div>
-            )}
-          </div>
-
-          {/* Sender zurück / Play-Pause / Sender vor */}
-          <div className="flex items-center justify-center md:justify-start gap-6 shrink-0">
-            <button
-              onClick={onPrev}
-              disabled={!station}
-              aria-label="Vorheriger Sender"
-              className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
-            >
-              <SkipBack size={22} fill="currentColor" />
-            </button>
-
-            <button
-              onClick={onToggle}
-              disabled={!station}
-              aria-label={isPlaying ? 'Pause' : 'Wiedergabe'}
-              className="btn-material w-20 h-20 flex items-center justify-center disabled:opacity-40"
-            >
-              {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={34} fill="currentColor" />}
-            </button>
-
-            <button
-              onClick={onNext}
-              disabled={!station}
-              aria-label="Nächster Sender"
-              className="btn-material w-14 h-14 flex items-center justify-center disabled:opacity-40"
-            >
-              <SkipForward size={22} fill="currentColor" />
-            </button>
-          </div>
-
-          {/* Lautstärke */}
-          <div className="flex items-center gap-3 w-full">
-            <button
-              onClick={toggleMute}
-              aria-label={muted ? 'Ton an' : 'Stummschalten'}
-              className="w-9 h-9 flex items-center justify-center rounded-full shrink-0"
-              style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}
-            >
-              <VolIcon size={18} />
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
-              style={{
-                accentColor: 'var(--color-accent)',
-                background: `linear-gradient(to right, var(--color-accent) ${volume * 100}%, var(--color-tabbar-inactive) ${volume * 100}%)`,
-              }}
-              aria-label="Lautstärke"
+        {/* Rechte Spalte: Block (Display, VU, Spectrum, Bedienpanel). Ab md
+            bestimmt dieser Block die gemeinsame Reihenhöhe; gleicher Abstand
+            (gap) zwischen allen vier Elementen, gleiche Breite. */}
+        <div className="flex items-center justify-center md:justify-start min-h-0 md:flex-1 md:basis-0">
+        <div ref={rightColRef} className="flex flex-col items-stretch gap-3 md:gap-5 w-full md:max-w-[520px] min-h-0 md:justify-center">
+          {/* Display (ersetzt die alte Text-Darstellung) */}
+          <div className="shrink-0">
+            <Display
+              station={dispStation}
+              title={dispTitle}
+              artist={dispArtist}
+              frequency={frequency}
+              style={displayStyle}
             />
-            <Volume2 size={20} style={{ color: 'var(--color-text-secondary)' }} />
           </div>
 
-          {/* Visualizer: VU-Meter nebeneinander, Spektrum darunter in voller Breite */}
-          <div className="flex flex-col gap-2 w-full">
-            {/* VU-Meter-Reihe: beide gleich breit */}
-            <div className="flex gap-2">
-              <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
-                <VUMeter label="L" style={vuStyle} customColor={vuColor} />
-              </div>
-              <div className="flex-1" style={{ aspectRatio: '4 / 3' }}>
-                <VUMeter label="R" style={vuStyle} customColor={vuColor} />
-              </div>
+          {/* VU-Meter-Reihe: beide gleich breit, zusammen = Display-/Spectrum-Breite */}
+          <div className="flex gap-2 shrink min-h-0" style={{ height: 'clamp(48px, 14vh, 150px)' }}>
+            <div
+              className="flex-1 panel-frame overflow-hidden"
+              style={{ borderRadius: 'min(var(--radius-global, 10px), clamp(35px, 7vh, 75px))' }}
+            >
+              <VUMeter label="L" style={vuStyle} customColor={vuColor} />
             </div>
-
-            {/* Spektrum-Reihe: volle Breite */}
-            <div className="h-[80px] sm:h-[100px] w-full">
-              <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
+            <div
+              className="flex-1 panel-frame overflow-hidden"
+              style={{ borderRadius: 'min(var(--radius-global, 10px), clamp(35px, 7vh, 75px))' }}
+            >
+              <VUMeter label="R" style={vuStyle} customColor={vuColor} />
             </div>
           </div>
+
+          {/* Spectrum: volle Breite */}
+          <div
+            className="w-full shrink min-h-0 panel-frame overflow-hidden"
+            style={{
+              height: 'clamp(40px, 12vh, 110px)',
+              borderRadius: 'min(var(--radius-global, 10px), clamp(28px, 6vh, 55px))',
+            }}
+          >
+            <SpectrumAnalyzer style={spectrumStyle} customColor={spectrumColor} />
+          </div>
+
+          {/* Bedienpanel — direkt unter dem Spektrum, gleicher Abstand wie oben.
+              Dunkler, leicht transparenter Hintergrund + globaler Radius
+              (analog Apple-TV). */}
+          <div className="shrink-0">
+            <ControlPanel
+              station={station}
+              isPlaying={isPlaying}
+              onToggle={onToggle}
+              onStop={onStop}
+              onPrev={onPrev}
+              onNext={onNext}
+            />
+          </div>
+        </div>
         </div>
       </div>
     </div>
