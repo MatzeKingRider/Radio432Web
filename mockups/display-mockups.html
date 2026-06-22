@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radio432 — Display-Mockups (10 Varianten)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Orbitron:wght@500;700&family=Major+Mono+Display&family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.css">
+<style>
+  :root{
+    --accent:#C9A84C;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:#0c0c0e;color:#e8e8ea;
+    font-family:Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---- Steuerleiste ---- */
+  .toolbar{
+    position:sticky;top:0;z-index:50;
+    display:flex;flex-wrap:wrap;gap:18px;align-items:center;
+    padding:14px 22px;background:#141417;border-bottom:1px solid #26262b;
+  }
+  .toolbar h1{font-size:15px;margin:0 16px 0 0;font-weight:700;letter-spacing:.3px;}
+  .toolbar .group{display:flex;gap:8px;align-items:center;font-size:12px;color:#a6a6ad;}
+  .swatch{width:26px;height:26px;border-radius:50%;border:2px solid #3a3a40;cursor:pointer;transition:transform .12s;}
+  .swatch:hover{transform:scale(1.12);}
+  .swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent);}
+  input[type=range]{accent-color:var(--accent);}
+  .toolbar label{font-size:12px;color:#a6a6ad;}
+  .toolbar .val{font-variant-numeric:tabular-nums;color:#e8e8ea;width:42px;display:inline-block;}
+  button.toggle{background:#26262b;border:1px solid #3a3a40;color:#e8e8ea;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
+  button.toggle.on{background:var(--accent);color:#111;border-color:var(--accent);}
+  select#freq{background:#26262b;border:1px solid #3a3a40;color:#e8e8ea;border-radius:8px;padding:5px 8px;font-size:12px;cursor:pointer;}
+
+  /* ---- Raster ---- */
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));
+    gap:26px;padding:28px 22px 80px;
+  }
+  .card{display:flex;flex-direction:column;gap:10px;}
+  .card .meta{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;}
+  .card .meta .name{font-weight:700;font-size:14px;}
+  .card .meta .id{color:#6a6a72;font-variant-numeric:tabular-nums;}
+
+  /* ===== Basis-Display ===== */
+  .display{
+    --pad:18px;
+    position:relative;overflow:hidden;
+    border-radius:var(--radius);
+    padding:var(--pad);
+    height:170px;display:flex;flex-direction:column;justify-content:center;gap:7px;
+  }
+  .row{white-space:nowrap;overflow:hidden;line-height:1.15;}
+  /* Marquee: scrollt nur wenn .scroll gesetzt */
+  .row .inner{display:inline-block;}
+  .row.scroll .inner{animation:marquee 9s linear infinite;padding-right:60px;}
+  @keyframes marquee{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+  .row.scroll .inner::after{content:attr(data-text);padding-left:60px;}
+  .r-station{font-size:13px;letter-spacing:2px;opacity:.85;}
+  .r-title{font-size:25px;font-weight:700;}
+  .r-artist{font-size:16px;opacity:.8;}
+  .r-freq{position:absolute;bottom:var(--pad);right:var(--pad);font-size:14px;font-weight:700;letter-spacing:1px;}
+
+  /* ===== 1. VFD Grün/Cyan ===== */
+  .vfd{background:#03100d;border:1px solid color-mix(in srgb,var(--accent) 40%,#000);
+    font-family:'Share Tech Mono',monospace;color:var(--accent);
+    text-shadow:0 0 4px var(--accent),0 0 12px color-mix(in srgb,var(--accent) 60%,transparent);}
+  .vfd::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.25) 2px 3px);pointer-events:none;}
+  .vfd .r-station{color:color-mix(in srgb,var(--accent) 70%,#fff);}
+
+  /* ===== 2. Bernstein 7-Segment ===== */
+  .amber{background:#080603;border:1px solid #2a1c08;color:#ff9b1a;}
+  .amber .r-station,.amber .r-title,.amber .r-artist,.amber .r-freq{
+    font-family:'DSEG14 Classic','Share Tech Mono',monospace;
+    color:var(--accent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 70%,transparent);}
+  .amber .r-title{font-size:21px;}
+  .amber .r-artist{font-size:14px;}
+  .amber .r-station{font-size:11px;}
+  .amber::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,transparent,rgba(0,0,0,.5));pointer-events:none;}
+
+  /* ===== 3. LCD Blau (Backlit) ===== */
+  .lcd{background:linear-gradient(160deg,#1763b8,#0d3f7a);
+    border:3px solid color-mix(in srgb,var(--accent) 55%,#06203f);
+    color:#eaf3ff;font-family:'Share Tech Mono',monospace;
+    text-shadow:0 1px 0 rgba(0,0,0,.35);}
+  .lcd .r-title{color:#fff;}
+  .lcd .r-freq,.lcd .r-station{color:#bcd8ff;}
+  .lcd.tinted{background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 65%,#1763b8),color-mix(in srgb,var(--accent) 40%,#0d3f7a));}
+
+  /* ===== 4. OLED Minimal ===== */
+  .oled{background:#000;border:1px solid #1c1c1f;color:var(--accent);font-family:Inter,sans-serif;}
+  .oled .r-station{color:#fff;opacity:.5;font-weight:500;}
+  .oled .r-title{color:var(--accent);font-weight:300;letter-spacing:.5px;}
+  .oled .r-artist{color:#fff;opacity:.7;font-weight:300;}
+  .oled .r-freq{color:var(--accent);}
+
+  /* ===== 5. Nixie-Röhre ===== */
+  .nixie{background:radial-gradient(ellipse at 50% 60%,#1a1208,#070502);border:1px solid #3a2a12;
+    font-family:'Orbitron','Share Tech Mono',monospace;color:#ff7518;letter-spacing:1px;}
+  .nixie .row{color:var(--accent);text-shadow:0 0 5px var(--accent),0 0 16px color-mix(in srgb,var(--accent) 55%,transparent);}
+  .nixie .r-title{font-size:22px;}
+  .nixie::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 100%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 70%);pointer-events:none;}
+
+  /* ===== 6. Plasma / Dot-Matrix ===== */
+  .dot{background:#0a0500;border:1px solid #2a1500;color:var(--accent);font-family:'VT323',monospace;}
+  .dot .row{text-shadow:0 0 6px var(--accent);}
+  .dot .r-title{font-size:30px;}
+  .dot .r-artist{font-size:20px;}
+  .dot .r-station{font-size:17px;}
+  .dot .r-freq{font-size:18px;}
+  .dot::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(0,0,0,.55) 1px,transparent 1.4px);background-size:4px 4px;pointer-events:none;mix-blend-mode:multiply;}
+
+  /* ===== 7. Chrome / Hi-Fi Skala ===== */
+  .chrome{background:linear-gradient(180deg,#3a3d42,#1c1e22 55%,#34373c);
+    border:1px solid #55585f;color:#e8eaee;font-family:Inter,sans-serif;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 6px rgba(0,0,0,.5);}
+  .chrome .r-title{color:#fff;text-shadow:0 1px 1px #000;}
+  .chrome .r-station{letter-spacing:3px;color:var(--accent);}
+  .chrome .r-artist{color:#c2c5cc;}
+  .chrome .r-freq{color:var(--accent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 60%,transparent);}
+
+  /* ===== 8. Tuner-Frequenzband (filigranes Messgerät) ===== */
+  .tuner{background:linear-gradient(180deg,#0d130f,#080b09);border:1px solid color-mix(in srgb,var(--accent) 35%,#000);color:#d8e6d8;font-family:'Share Tech Mono',monospace;justify-content:flex-start;gap:3px;}
+  .tuner .r-station{font-size:11px;letter-spacing:2px;}
+  .tuner .r-title{font-size:18px;color:#fff;}
+  .tuner .r-artist{font-size:12px;}
+  .tuner .gauge{position:relative;margin-top:6px;}
+  .tuner .readout{position:absolute;top:-1px;right:0;font-size:14px;font-weight:700;color:var(--accent);
+    letter-spacing:1px;padding:1px 7px;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:4px;
+    background:color-mix(in srgb,var(--accent) 10%,transparent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 60%,transparent);}
+  .tuner .readout .u{font-size:9px;opacity:.7;margin-left:3px;letter-spacing:0;}
+  .tuner .scale{position:relative;height:30px;margin-top:24px;}
+  .tuner .tickline{position:absolute;left:0;right:0;top:0;height:1px;background:color-mix(in srgb,var(--accent) 45%,transparent);}
+  .tuner .tk{position:absolute;top:0;width:1px;height:5px;background:color-mix(in srgb,var(--accent) 28%,transparent);transform:translateX(-50%);}
+  .tuner .tk.mid{height:9px;background:color-mix(in srgb,var(--accent) 50%,transparent);}
+  .tuner .tk.maj{height:14px;width:1.5px;background:color-mix(in srgb,var(--accent) 85%,transparent);}
+  .tuner .tk.on{height:16px;width:2px;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+  .tuner .tlab{position:absolute;top:17px;font-size:9px;color:color-mix(in srgb,var(--accent) 70%,transparent);transform:translateX(-50%);font-variant-numeric:tabular-nums;}
+  .tuner .tlab.on{color:var(--accent);font-weight:700;text-shadow:0 0 6px var(--accent);}
+  .tuner .needle{position:absolute;top:-7px;height:24px;width:2px;background:var(--accent);transform:translateX(-50%);box-shadow:0 0 8px var(--accent);transition:left .55s cubic-bezier(.34,1.3,.5,1);}
+  .tuner .needle::before{content:"";position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid var(--accent);}
+  .tuner .r-freq{display:none;}
+
+  /* ===== 9. Cassette-Deck ===== */
+  .cassette{background:linear-gradient(180deg,#23252b,#15161a);border:1px solid #3a3d45;color:#e8e8ea;font-family:'Share Tech Mono',monospace;}
+  .cassette .r-station{color:var(--accent);letter-spacing:2px;font-size:11px;}
+  .cassette .r-title{font-size:19px;color:#fff;}
+  .cassette .reels{position:absolute;top:14px;right:16px;display:flex;gap:12px;}
+  .cassette .reel{width:26px;height:26px;border-radius:50%;border:3px solid #4a4d55;position:relative;}
+  .cassette .reel::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px color-mix(in srgb,var(--accent) 60%,transparent);}
+  .cassette .r-freq{color:var(--accent);}
+
+  /* ===== 10. Terminal / Phosphor Grün ===== */
+  .term{background:#020602;border:1px solid color-mix(in srgb,var(--accent) 30%,#000);color:var(--accent);font-family:'VT323',monospace;justify-content:flex-start;gap:2px;}
+  .term .row{text-shadow:0 0 5px var(--accent);font-size:21px;}
+  .term .r-station::before{content:"> ";opacity:.6;}
+  .term .r-title{font-size:26px;}
+  .term .r-artist::before{content:"  ";}
+  .term .r-freq{position:static;text-align:left;margin-top:2px;}
+  .term::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.22) 2px 3px);pointer-events:none;}
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>Radio432 · Display-Mockups</h1>
+    <div class="group">
+      <span>Themenfarbe:</span>
+      <span class="swatch active" style="background:#C9A84C" data-c="#C9A84C" title="Gold (Theme A)"></span>
+      <span class="swatch" style="background:#E87722" data-c="#E87722" title="Orange (Theme B)"></span>
+      <span class="swatch" style="background:#2ED9C3" data-c="#2ED9C3" title="Teal/Cyan"></span>
+      <span class="swatch" style="background:#4DA3FF" data-c="#4DA3FF" title="Blau"></span>
+      <span class="swatch" style="background:#FF4D4D" data-c="#FF4D4D" title="Rot"></span>
+      <span class="swatch" style="background:#7CFF4D" data-c="#7CFF4D" title="Grün"></span>
+      <input type="color" value="#C9A84C" id="picker" title="Eigene Farbe">
+    </div>
+    <div class="group">
+      <label>Eckenradius</label>
+      <input type="range" min="0" max="60" value="10" id="radius">
+      <span class="val" id="radiusVal">10px</span>
+    </div>
+    <div class="group">
+      <label>Frequenz</label>
+      <select id="freq"></select>
+    </div>
+    <button class="toggle" id="nextTrack">► Titel wechseln</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+<script>
+  // Demo-Tracks (kurz + lang gemischt) zum Durchschalten
+  const TRACKS = [
+    {station:"RADIO PARADISE", title:"Bohemian Rhapsody", artist:"Queen"},
+    {station:"RADIO PARADISE", title:"Stairway to Heaven", artist:"Led Zeppelin"},          // gleicher Sender → nur Titel/Interpret wechseln
+    {station:"RADIO SWISS JAZZ", title:"So What", artist:"Miles Davis"},                     // Senderwechsel → alles wechselt
+    {station:"RADIO PARADISE — MELLOW MIX", title:"Shine On You Crazy Diamond (Parts I–V) · Remastered", artist:"Pink Floyd feat. The London Symphony Orchestra"},
+    {station:"RADIO PARADISE — MELLOW MIX", title:"Comfortably Numb", artist:"Pink Floyd"},  // gleicher Sender → nur Titel/Interpret wechseln
+    {station:"FIP", title:"Redemption Song", artist:"Bob Marley & The Wailers"},
+  ];
+  const FREQS = [396,417,432,440,444,528,639,741,852,963];   // wählbare Frequenzen (Rastpunkte)
+  const LABELS = [400,450,500,550,600,650,700,750,800,850,900,950]; // Referenz-Beschriftung
+  const SMIN=390, SMAX=970;                                  // Skalenbereich
+
+  let curIdx = 0;
+  let cur = {...TRACKS[0]};
+  let curFreq = 432;
+
+  const SPEED = 90;   // px/s — gemeinsame Geschwindigkeit für Laufschrift UND Titelwechsel
+
+  const STYLES = [
+    {cls:"vfd",      name:"VFD Grün/Cyan"},
+    {cls:"amber",    name:"Bernstein 7-Segment"},
+    {cls:"lcd tinted",name:"LCD Blau (Backlit)"},
+    {cls:"oled",     name:"OLED Minimal"},
+    {cls:"nixie",    name:"Nixie-Röhre"},
+    {cls:"dot",      name:"Plasma / Dot-Matrix"},
+    {cls:"chrome",   name:"Chrome / Hi-Fi-Skala"},
+    {cls:"tuner",    name:"Tuner-Frequenzband"},
+    {cls:"cassette", name:"Cassette-Deck"},
+    {cls:"term",     name:"Terminal / Phosphor-Grün"},
+  ];
+
+  function rowHTML(cls, text){
+    return `<div class="row ${cls}"><span class="inner" data-text="${text}">${text}</span></div>`;
+  }
+
+  // Filigranes Tuner-Messgerät: feine Skala (390–970 Hz), Referenzmarken, Rastpunkte + Nadel auf der aktuellen Frequenz
+  function needlePct(freq){ return ((freq-SMIN)/(SMAX-SMIN))*100; }
+  function tunerGauge(freq){
+    let ticks="";
+    for(let hz=SMIN; hz<=SMAX; hz+=10){              // feine Skala
+      ticks += `<span class="tk" style="left:${needlePct(hz)}%"></span>`;
+    }
+    LABELS.forEach(hz=>{                             // beschriftete Referenzmarken
+      const p=needlePct(hz);
+      ticks += `<span class="tk maj" style="left:${p}%"></span><span class="tlab" style="left:${p}%">${hz}</span>`;
+    });
+    FREQS.forEach(hz=>{                              // Rastpunkte der wählbaren Frequenzen
+      ticks += `<span class="tk mid" style="left:${needlePct(hz)}%"></span>`;
+    });
+    return `<div class="gauge">
+      <div class="readout">${freq.toFixed(1)}<span class="u">Hz</span></div>
+      <div class="scale">
+        <div class="tickline"></div>
+        ${ticks}
+        <span class="needle" style="left:${needlePct(freq)}%"></span>
+      </div>
+    </div>`;
+  }
+
+  // Marquee pro Zeile: nur scrollen, wenn der Text breiter als der Container ist
+  function marqueeRow(row){
+    row.classList.remove('scroll');
+    const inner = row.querySelector('.inner');
+    if(!inner) return;
+    if(inner.scrollWidth > row.clientWidth + 1){
+      row.classList.add('scroll');
+      inner.style.animationDuration = ((inner.scrollWidth/2)/SPEED).toFixed(2)+'s';  // konstante Geschwindigkeit
+    } else {
+      inner.style.animationDuration = '';
+    }
+  }
+  function applyMarquee(){
+    document.querySelectorAll('.display .row').forEach(marqueeRow);
+  }
+
+  function render(){
+    const d = cur, fLabel = curFreq + " Hz";
+    const grid = document.getElementById('grid');
+    grid.innerHTML = STYLES.map((s,i)=>{
+      const extra = s.cls==="tuner" ? tunerGauge(curFreq)
+                  : s.cls==="cassette" ? `<div class="reels"><div class="reel"></div><div class="reel"></div></div>`
+                  : "";
+      const freqRow = s.cls==="term"
+        ? `<div class="r-freq">FREQ: ${fLabel}</div>`
+        : `<div class="r-freq">${fLabel}</div>`;
+      return `<div class="card">
+        <div class="meta"><span class="name">${s.name}</span><span class="id">#${String(i+1).padStart(2,'0')}</span></div>
+        <div class="display ${s.cls}">
+          ${rowHTML('r-station', d.station)}
+          ${rowHTML('r-title', d.title)}
+          ${rowHTML('r-artist', d.artist)}
+          ${extra}
+          ${freqRow}
+        </div>
+      </div>`;
+    }).join('');
+    // Fonts können später laden → Marquee mehrfach neu messen
+    applyMarquee();
+    requestAnimationFrame(applyMarquee);
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(applyMarquee); }
+  }
+  window.addEventListener('resize', applyMarquee);
+
+  // Akzentfarbe
+  function setAccent(c){
+    document.documentElement.style.setProperty('--accent', c);
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active', s.dataset.c===c));
+    document.getElementById('picker').value = c.length===7?c:'#C9A84C';
+  }
+  document.querySelectorAll('.swatch').forEach(s=>s.addEventListener('click',()=>setAccent(s.dataset.c)));
+  document.getElementById('picker').addEventListener('input',e=>setAccent(e.target.value));
+
+  // Radius
+  const radius=document.getElementById('radius'), radiusVal=document.getElementById('radiusVal');
+  radius.addEventListener('input',()=>{
+    document.documentElement.style.setProperty('--radius', radius.value+'px');
+    radiusVal.textContent = radius.value+'px';
+  });
+
+  // Frequenz-Auswahl → Nadel + Readout + alle Frequenz-Labels wandern mit
+  const freqSel=document.getElementById('freq');
+  freqSel.innerHTML = FREQS.map(f=>`<option value="${f}" ${f===curFreq?'selected':''}>${f} Hz</option>`).join('');
+  freqSel.addEventListener('change',()=>{
+    curFreq = parseInt(freqSel.value,10);
+    const p = needlePct(curFreq);
+    document.querySelectorAll('.display.tuner').forEach(t=>{
+      const n=t.querySelector('.needle'); if(n) n.style.left=p+'%';            // gleitet dank CSS-Transition
+      const ro=t.querySelector('.readout'); if(ro) ro.innerHTML=`${curFreq.toFixed(1)}<span class="u">Hz</span>`;
+    });
+    document.querySelectorAll('.display .r-freq').forEach(el=>{
+      el.textContent = el.closest('.term') ? `FREQ: ${curFreq} Hz` : `${curFreq} Hz`;
+    });
+  });
+
+  // Titelwechsel-Animation: alter Text läuft links raus, neuer kommt von rechts und bleibt vorne stehen
+  // (oder läuft als Laufschrift weiter, wenn er nicht ins Display passt).
+  const SWAP_SEL = '.display .r-station, .display .r-title, .display .r-artist';
+  function setRow(disp, sel, text){
+    const inner=disp.querySelector(sel+' .inner');
+    if(inner){ inner.textContent=text; inner.setAttribute('data-text', text); }
+  }
+  function swapTrack(next, keepStation){
+    // Bei reinem Titelwechsel (gleicher Sender) bleibt die Senderzeile stehen
+    const sel = keepStation ? '.display .r-title, .display .r-artist' : SWAP_SEL;
+    const rows=[...document.querySelectorAll(sel)];
+    // RAUS nach links — lineare Bewegung mit SPEED (gleiche Geschwindigkeit wie die Laufschrift)
+    let maxOut=0;
+    rows.forEach(row=>{
+      row.classList.remove('scroll');
+      const inner=row.querySelector('.inner');
+      inner.style.animation='none';
+      const dist=Math.max(inner.offsetWidth, row.clientWidth)+24;   // px bis vollständig links draußen
+      const dur=dist/SPEED; maxOut=Math.max(maxOut,dur);
+      inner.style.transition=`transform ${dur.toFixed(2)}s linear`;
+      inner.style.transform=`translateX(-${dist}px)`;
+    });
+    setTimeout(()=>{
+      // Text tauschen (Sender nur, wenn er sich ändert)
+      document.querySelectorAll('.display').forEach(disp=>{
+        if(!keepStation) setRow(disp,'.r-station',next.station);
+        setRow(disp,'.r-title',next.title);
+        setRow(disp,'.r-artist',next.artist);
+      });
+      // REIN von rechts — gleiche SPEED, Weg = Displaybreite
+      const fresh=[...document.querySelectorAll(sel)];
+      let maxIn=0;
+      fresh.forEach(row=>{
+        const inner=row.querySelector('.inner');
+        const dist=row.clientWidth+24;
+        inner.style.transition='none';
+        inner.style.transform=`translateX(${dist}px)`;   // rechts bereitstellen
+      });
+      void document.body.offsetWidth;                     // Reflow erzwingen
+      fresh.forEach(row=>{
+        const inner=row.querySelector('.inner');
+        const dist=row.clientWidth+24;
+        const dur=dist/SPEED; maxIn=Math.max(maxIn,dur);
+        inner.style.transition=`transform ${dur.toFixed(2)}s linear`;
+        inner.style.transform='translateX(0)';            // von rechts reinfahren
+      });
+      setTimeout(()=>{
+        fresh.forEach(row=>{
+          const inner=row.querySelector('.inner');
+          inner.style.transition=''; inner.style.transform=''; inner.style.animation='';
+          marqueeRow(row);   // nur die getauschten Zeilen neu bewerten — Senderzeile bleibt unangetastet
+        });
+      }, maxIn*1000+40);
+    }, maxOut*1000+20);
+  }
+  document.getElementById('nextTrack').addEventListener('click',()=>{
+    const nextIdx=(curIdx+1)%TRACKS.length;
+    const next={...TRACKS[nextIdx]};
+    const keepStation = next.station===cur.station;   // gleicher Sender → Senderzeile stehen lassen
+    curIdx=nextIdx; cur=next;
+    swapTrack(next, keepStation);
+  });
+
+  render();
+</script>
+</body>
+</html>
