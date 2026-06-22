@@ -34,6 +34,25 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
   const analyserNode = usePlayerStore((s) => s.analyserNode)
   const simulatedMode = usePlayerStore((s) => s.simulatedMode)
 
+  // Kosmetische Props in Refs spiegeln. So liest die Render-Loop immer die
+  // aktuellen Werte, ohne dass eine Stil-/Farbänderung die Loop neu aufbaut —
+  // sonst entstehen überlappende rAF-Loops (Flackern/„doppelt") + Performance-Einbruch.
+  const labelRef = useRef(label)
+  const styleRef = useRef(style)
+  const colorRef = useRef(customColor)
+  const drawRef = useRef(null)
+  useEffect(() => {
+    labelRef.current = label
+    styleRef.current = style
+    colorRef.current = customColor
+    // Im Ruhezustand einmalig neu zeichnen, damit eine Stil-/Farbänderung sofort
+    // sichtbar wird (im Wiedergabe-Zustand erledigt das die laufende Loop).
+    if (!usePlayerStore.getState().isPlaying && drawRef.current) {
+      const id = requestAnimationFrame(() => drawRef.current && drawRef.current())
+      return () => cancelAnimationFrame(id)
+    }
+  }, [label, style, customColor])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -62,7 +81,9 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
     }
 
     function draw() {
-      const accent = resolveAccent(customColor)
+      const style = styleRef.current
+      const label = labelRef.current
+      const accent = resolveAccent(colorRef.current)
       const rect = canvas.getBoundingClientRect()
       const w = rect.width
       const h = rect.height
@@ -105,6 +126,8 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
       }
     }
 
+    drawRef.current = draw
+
     // Bei Größenänderung im Ruhezustand statischen Rahmen neu zeichnen.
     function redrawStatic() {
       resize()
@@ -114,14 +137,16 @@ export default function VUMeter({ label, style = 'analogClassic', customColor = 
 
     cancelAnimationFrame(rafRef.current)
     // Zwei gestaffelte Frames: erst nach Layout hat das Canvas seine Endgröße.
-    requestAnimationFrame(() => { resize(); draw() })
+    // ID in rafRef speichern, damit der Cleanup auch diesen Bootstrap-Frame cancelt
+    // (sonst startet er eine zweite Loop = überlappende Frames).
+    rafRef.current = requestAnimationFrame(() => { resize(); draw() })
 
     return () => {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', resize)
       window.removeEventListener('resize', redrawStatic)
     }
-  }, [isPlaying, analyserNode, simulatedMode, label, style, customColor])
+  }, [isPlaying, analyserNode, simulatedMode])
 
   return (
     <canvas
@@ -549,11 +574,15 @@ function line(ctx, x1, y1, x2, y2, color, width) {
 }
 
 function roundRect(ctx, x, y, w, h, r) {
+  // Bei extrem kleinen/negativen Flächen (sehr niedriger Viewport) nichts zeichnen,
+  // sonst wirft arcTo IndexSizeError (negativer Radius).
+  if (w <= 0 || h <= 0) { ctx.beginPath(); return }
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
   ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.arcTo(x + w, y, x + w, y + h, r)
-  ctx.arcTo(x + w, y + h, x, y + h, r)
-  ctx.arcTo(x, y + h, x, y, r)
-  ctx.arcTo(x, y, x + w, y, r)
+  ctx.moveTo(x + rr, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rr)
+  ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr)
+  ctx.arcTo(x, y, x + w, y, rr)
   ctx.closePath()
 }

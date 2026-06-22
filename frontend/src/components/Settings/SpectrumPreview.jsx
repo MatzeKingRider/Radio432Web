@@ -251,7 +251,10 @@ function withAlpha(color, alpha) {
 }
 
 function roundRect(ctx, x, y, w, h, r) {
-  const rr = Math.min(r, w / 2, h / 2)
+  // Bei extrem kleinen/negativen Flächen (sehr niedriger Viewport) nichts zeichnen,
+  // sonst wirft arcTo IndexSizeError (negativer Radius).
+  if (w <= 0 || h <= 0) { ctx.beginPath(); return }
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
   ctx.beginPath()
   ctx.moveTo(x + rr, y)
   ctx.arcTo(x + w, y, x + w, y + h, rr)

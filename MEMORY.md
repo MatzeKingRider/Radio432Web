@@ -182,3 +182,17 @@ Alle Endpunkte implementiert und getestet:
 **Hinweis:** Diese Arbeit fand auf dem Server statt (nicht im Repo). Die Server-`docker-compose.yml` weicht jetzt minimal von der Repo-Version ab (fehlende `version:`-Zeile — kosmetisch). Bei künftigem Tunnel-Flackern zuerst cloudflared-Version + Tunnel-Logs prüfen.
 
 **Offen / Nächste Schritte:** unverändert wie 2026-06-05 (iOS-Sync durch CF Access, WebSyncService, .gitignore für *.db-*). Zusätzlich: WIP `feat/artwork-fallback-chain` noch nicht committet/gepusht.
+
+---
+
+## Backlog: Anbindung externer Streaming-Dienste (Recherche 2026-06-22)
+
+**Frage:** Spotify / Amazon Music / Deezer / Apple Music / YouTube Music / TIDAL / Qobuz als Quelle anbinden?
+
+**Kernproblem:** Das Pitch-Shift-Feature braucht Zugriff auf das rohe, dekodierte Audiosignal (PCM). Genau das verriegeln alle großen Dienste per DRM (Widevine/FairPlay) — man bekommt nur eine versiegelte Blackbox zum Abspielen, nie die Samples.
+
+- **Spotify, Apple Music, TIDAL, YouTube Music, Amazon Music:** technisch ausgeschlossen (DRM, kein PCM-Zugriff; teils per ToS ausdrücklich verboten, Pitch zu ändern).
+- **Deezer:** SDKs eingestellt, API nur 30-Sek-Previews → nicht gangbar.
+- **Qobuz:** EINZIGER technischer Kandidat (DRM-freie FLAC → dekodierbar). Aber: kein offenes Developer-Programm, nur Partneranfrage (api@qobuz.com); ob Audio-Modifikation vertraglich erlaubt ist, unbestätigt.
+
+**Fazit:** Für Pitch-Shift bleiben PCM-Quellen nötig (Radio/ICY-Streams wie heute, lokale Dateien, ggf. Qobuz per Partnervertrag). Die großen DRM-Dienste sind keine gangbare Quelle. → Nicht jetzt umsetzen; bei Bedarf Qobuz-Partnerschaft prüfen.

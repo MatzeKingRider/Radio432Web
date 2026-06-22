@@ -7,6 +7,8 @@ import VUMeterPreview from './VUMeterPreview'
 import SpectrumPreview from './SpectrumPreview'
 import DisplayStylePicker from './DisplayStylePicker'
 import QRCode from '../common/QRCode'
+import FrequencyInfo from './FrequencyInfo'
+import { Info } from 'lucide-react'
 
 const VU_STYLES = [
   ['analogClassic', 'Analog Classic'],
@@ -113,6 +115,7 @@ export default function SettingsView() {
   const [qrLoading, setQrLoading] = useState(false)
   const [qrData, setQrData] = useState(null)
   const [qrError, setQrError] = useState(null)
+  const [freqInfoOpen, setFreqInfoOpen] = useState(false)
 
   const generateQR = async () => {
     setQrLoading(true)
@@ -304,6 +307,16 @@ export default function SettingsView() {
       <div className="px-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
         Pitch-Shift ist im Browser aktiv und wird im Konto gespeichert.
       </div>
+      <div className="px-4 pt-2">
+        <button
+          onClick={() => setFreqInfoOpen(true)}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-[13px] font-medium transition-colors"
+          style={{ background: 'var(--color-surface)', color: 'var(--color-accent)', border: '1px solid var(--color-separator)' }}
+        >
+          <Info size={16} />
+          Was bedeuten die Frequenzen?
+        </button>
+      </div>
       <div className="flex gap-2 px-4 py-2 overflow-x-auto scroll-area">
         {FREQUENCIES.map((f) => {
           const isActive = frequency === f
@@ -376,6 +389,8 @@ export default function SettingsView() {
           ? 'Backend nicht verbunden — Favoriten werden lokal gespeichert.'
           : 'Mit Backend verbunden.'}
       </div>
+
+      <FrequencyInfo open={freqInfoOpen} onClose={() => setFreqInfoOpen(false)} />
     </div>
   )
 }

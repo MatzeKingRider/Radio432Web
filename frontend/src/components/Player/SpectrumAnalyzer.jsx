@@ -44,6 +44,29 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
   const peakColorSetting = useSettingsStore((s) => s.peakColor)
   const peakHoldMs = useSettingsStore((s) => s.peakHoldMs)
 
+  // Kosmetische Props/Settings in Refs spiegeln. So liest die Render-Loop immer die
+  // aktuellen Werte, ohne dass eine Stil-/Peak-Änderung die Loop neu aufbaut —
+  // sonst entstehen überlappende rAF-Loops (Flackern/„doppelt") + Performance-Einbruch.
+  const styleRef = useRef(style)
+  const colorRef = useRef(customColor)
+  const peakEnabledRef = useRef(peakEnabled)
+  const peakColorRef = useRef(peakColorSetting)
+  const peakHoldRef = useRef(peakHoldMs)
+  const drawRef = useRef(null)
+  useEffect(() => {
+    styleRef.current = style
+    colorRef.current = customColor
+    peakEnabledRef.current = peakEnabled
+    peakColorRef.current = peakColorSetting
+    peakHoldRef.current = peakHoldMs
+    // Im Ruhezustand einmalig neu zeichnen, damit eine Einstellungsänderung sofort
+    // sichtbar wird (im Wiedergabe-Zustand erledigt das die laufende Loop).
+    if (!usePlayerStore.getState().isPlaying && drawRef.current) {
+      const id = requestAnimationFrame(() => drawRef.current && drawRef.current())
+      return () => cancelAnimationFrame(id)
+    }
+  }, [style, customColor, peakEnabled, peakColorSetting, peakHoldMs])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -69,7 +92,11 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
     }
 
     function draw() {
-      const accent = resolveAccent(customColor)
+      const style = styleRef.current
+      const peakEnabled = peakEnabledRef.current
+      const peakColorSetting = peakColorRef.current
+      const peakHoldMs = peakHoldRef.current
+      const accent = resolveAccent(colorRef.current)
       const rect = canvas.getBoundingClientRect()
       const w = rect.width
       const h = rect.height
@@ -122,6 +149,8 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
       else rafRef.current = 0
     }
 
+    drawRef.current = draw
+
     function redrawStatic() {
       resize()
       if (!usePlayerStore.getState().isPlaying) draw()
@@ -129,14 +158,16 @@ export default function SpectrumAnalyzer({ style = 'classic', customColor = '' }
     window.addEventListener('resize', redrawStatic)
 
     cancelAnimationFrame(rafRef.current)
-    requestAnimationFrame(() => { resize(); draw() })
+    // ID in rafRef speichern, damit der Cleanup auch diesen Bootstrap-Frame cancelt
+    // (sonst startet er eine zweite Loop = überlappende Frames).
+    rafRef.current = requestAnimationFrame(() => { resize(); draw() })
 
     return () => {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', resize)
       window.removeEventListener('resize', redrawStatic)
     }
-  }, [isPlaying, analyserNode, simulatedMode, style, customColor, peakEnabled, peakColorSetting, peakHoldMs])
+  }, [isPlaying, analyserNode, simulatedMode])
 
   return <canvas ref={canvasRef} className="w-full h-full block" />
 }
