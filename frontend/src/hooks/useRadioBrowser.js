@@ -1,19 +1,29 @@
 import { useCallback, useState } from 'react'
 
+// Primär der Round-Robin-Host (verteilt automatisch auf alle gerade laufenden
+// Server), dann de1 als expliziter Fallback. Frühere feste Liste war keine echte
+// Redundanz: de2 zeigt auf dieselbe IP wie de1, nl1 existiert nicht mehr.
 const MIRRORS = [
+  'https://all.api.radio-browser.info/json',
   'https://de1.api.radio-browser.info/json',
-  'https://de2.api.radio-browser.info/json',
-  'https://nl1.api.radio-browser.info/json',
 ]
+
+const FETCH_TIMEOUT_MS = 8000
 
 async function fetchWithFallback(path) {
   for (const base of MIRRORS) {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
     try {
-      const res = await fetch(`${base}${path}`)
+      const res = await fetch(`${base}${path}`, { signal: ctrl.signal })
+      clearTimeout(timer)
       if (res.ok) return res
-    } catch { /* Mirror nicht erreichbar, nächsten versuchen */ }
+    } catch {
+      clearTimeout(timer)
+      /* Server nicht erreichbar/Timeout — nächsten versuchen */
+    }
   }
-  throw new Error('Alle RadioBrowser-Mirror nicht erreichbar')
+  throw new Error('RadioBrowser gerade nicht erreichbar — bitte später erneut versuchen.')
 }
 
 // Stream-URLs aus der crowdsourced API auf http/https beschränken.
